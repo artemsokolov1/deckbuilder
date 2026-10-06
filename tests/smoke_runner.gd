@@ -39,8 +39,14 @@ func run(t: SceneTree) -> void:
 	for m in g.tutorial_seen:
 		g.tutorial_seen[m] = true
 	print("=== Прогон интерфейса ===")
+	var outcomes := {}
 	for mode in ["a", "b", "c"]:
 		await _series(mode, 1000 + mode.unicode_at(0))
+		outcomes["win" if g.goals() >= 3 else "loss"] = true
+		for at in g.attacks:
+			outcomes[at["outcome"]] = true
+	check(outcomes.has("win") and outcomes.has("loss"), "серии закончились и победой, и поражением")
+	check(outcomes.has("goal") and outcomes.has("save") and outcomes.has("intercept"), "встретились гол, сейв и перехват")
 	await _tutorial_flow()
 	await _escape_during_animation()
 	await _double_clicks()
