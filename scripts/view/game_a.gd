@@ -50,14 +50,14 @@ func _build_mode_ui() -> void:
 	_tempo_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tempo_pips.draw.connect(_draw_tempo)
 	right.add_child(_tempo_pips)
-	_quality_lb = lbl(right, "", Vector2(206, 172), 19, Game.C_TEXT)
+	_quality_lb = lbl(right, "", Vector2(200, 173), 17, Game.C_TEXT)
 	_mull_btn = button(right, "Обмен карт", Rect2(424, 166, 196, 42), _on_mulligan, 16)
 	_mull_cancel = button(right, "Отмена", Rect2(398, 166, 82, 42), _cancel_mulligan, 15)
 	_mull_cancel.visible = false
 	# --- инфо
 	panel(right, Rect2(0, 224, 632, 162))
-	_info = rich(right, Rect2(14, 232, 604, 100), 16)
-	_next_lb = rich(right, Rect2(14, 334, 604, 50), 15)
+	_info = rich(right, Rect2(14, 230, 604, 122), 15)
+	_next_lb = rich(right, Rect2(14, 344, 604, 40), 14)
 	# --- удар
 	_shot_btn = button(right, "", Rect2(0, 394, 632, 82), _on_shot, 26)
 	_shot_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT

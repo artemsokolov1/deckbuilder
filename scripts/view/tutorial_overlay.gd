@@ -77,6 +77,8 @@ func _ready() -> void:
 
 
 func _go(d: int) -> void:
+	if _i >= pages.size():
+		return
 	Sfx.play("click")
 	_i += d
 	if _i >= pages.size():
@@ -99,6 +101,10 @@ func _show() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
+	if _i >= pages.size():
+		return
 	if event.is_pressed() and (event.is_action("ui_accept") or (event is InputEventKey and event.keycode == KEY_RIGHT)):
 		get_viewport().set_input_as_handled()
 		_go(1)

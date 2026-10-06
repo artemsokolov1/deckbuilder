@@ -318,6 +318,8 @@ func _play(idx: int) -> void:
 	var id: String = state["hand"][idx]
 	var d := RulesC.card_def(id)
 	var q_before: int = state["quality"]
+	# клетку считаем ДО розыгрыша — ровно ту, что была подсвечена
+	var to := _target_cell(id, q_before + int(d["quality"]))
 	var r := RulesC.play_card(state, idx)
 	if not r["legal"]:
 		busy = false
@@ -360,7 +362,6 @@ func _play(idx: int) -> void:
 		return
 	# мяч сохранён — атака продвигается
 	if int(d["draw_count"]) > 0 or r["quality_gain"] > 0:
-		var to := _target_cell(id, int(state["quality"]))
 		var tw: Tween
 		if to == ball_cell:
 			tw = pitch.carry_ball(to, dur(0.3))
@@ -466,7 +467,7 @@ func _tutorial_pages() -> Array:
 		{"title": "Колода обороны", "text": "У обороны своя колода на каждую атаку: [color=#86d46f]6 «Безопасно»[/color], [color=#f0a43a]3 «Давление»[/color], [color=#e4553f]1 «Перехват»[/color].\n\nСобытия открываются сверху и [b]не возвращаются[/b] — остаток виден справа. [color=#e4553f]Перехват[/color] — сразу потеря мяча. [b]Второе[/b] накопленное давление — тоже потеря."},
 		{"title": "Ваши карты", "text": "5 карт, каждая — один раз, всего [b]не больше 4[/b] за атаку, потом только удар.\n\nКарта открывает 0–2 события и, если мяч сохранён, добавляет [b]качество[/b]: +12% к шансу гола за единицу, максимум 90%. Если потеря случилась на первом из двух событий, второе не открывается и бонуса нет."},
 		{"title": "Честные проценты", "text": "Наведите на карту — увидите [b]точный шанс потери[/b], посчитанный по оставшемуся составу колоды (без возвращения), и каким станет шанс гола.\n\nУдар — [b]один бросок[/b] по показанному шансу. Результат не подкручивается ради драмы."},
-		{"title": "Тренировка", "text": "Сейчас будет [b]тренировочная атака[/b] (не идёт в счёт). Над полем — [color=#7cc3e8]подсказки[/color].\n\nEsc — выход в меню в любой момент."},
+		{"title": "Тренировка", "text": "Сейчас будет [b]тренировочная атака[/b] (не идёт в счёт). Над полем — [color=#7cc3e8]подсказки[/color]. В тренировке порядок событий подготовлен заранее, чтобы показать и удачу, и риск; в серии он всегда случайный.\n\nEsc — выход в меню в любой момент."},
 	]
 
 
@@ -475,9 +476,11 @@ func _tutorial_hint() -> void:
 		set_hint("")
 		return
 	var played: int = state["played"]
-	if played == 0:
+	if played >= int(RulesC.cfg()["max_cards_played"]):
+		set_hint("карты закончились — остался только удар.")
+	elif played == 0:
 		set_hint("наведите на [b]«Пас»[/b] — справа шанс потери (10%) и шанс гола после него. Нажмите карту, затем подсвеченную клетку.")
-	elif int(state["pressure"]) > 0 and not state["used"][2]:
+	elif int(state["pressure"]) > 0 and not state["used"][2] and played < int(RulesC.cfg()["max_cards_played"]):
 		set_hint("есть давление: [b]«Пауза»[/b] снимет его без риска. Ещё одно давление — потеря мяча.")
 	elif RulesC.goal_chance(state["quality"]) >= 59:
 		set_hint("шанс уже [b]%d%%[/b]. Решайте: бить сейчас или рискнуть ещё раз." % RulesC.goal_chance(state["quality"]))

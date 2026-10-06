@@ -271,13 +271,13 @@ func _on_card_pressed(cv: CardView) -> void:
 		return
 	var i := cv.hand_idx
 	var in_slot := RulesB.slot_of_card(state, i)
-	if in_slot >= 0:
-		active_slot = in_slot
-	var reason := RulesB.card_reason(state, i, active_slot)
+	var slot_i := in_slot if in_slot >= 0 else active_slot
+	var reason := RulesB.card_reason(state, i, slot_i)
 	if reason != "":
 		Sfx.play("error")
 		_info.text = "[b]%s[/b] — [color=#e4553f]нельзя:[/color] %s" % [cv.title, reason]
 		return
+	active_slot = slot_i
 	Sfx.play("click")
 	if selected == i:
 		selected = -1
@@ -356,7 +356,9 @@ func _on_cell_hovered(cell: Vector2i) -> void:
 	if busy or state.is_empty() or state["over"] or selected < 0:
 		return
 	if not pitch.targets.has(cell):
-		_show_route(RulesB.simulate(state))
+		var cur := RulesB.simulate(state)
+		_show_route(cur)
+		_default_info(cur)
 		return
 	var sim := RulesB.preview_place(state, active_slot, selected, cell)
 	if sim.is_empty():
@@ -408,7 +410,10 @@ func _on_play() -> void:
 	set_hint("")
 	var log := "[b]Исполнение плана[/b]"
 	_info.text = log
-	await wait(0.25)
+	# защитники встают в положение для первого действия (до запуска поле могло показывать удар)
+	pitch.set_danger(RulesB.danger(state, 0), [])
+	await pitch.move_defenders(RulesB.danger(state, 0), dur(0.25)).finished
+	await wait(0.15)
 	for st in sim["steps"]:
 		var i: int = st["slot"]
 		_highlight_step(i)
@@ -488,8 +493,11 @@ func _tutorial_hint(sim: Dictionary) -> void:
 		return
 	var s0 := RulesB.slot_status(state, 0)
 	var s1 := RulesB.slot_status(state, 1)
+	var on_script: bool = not s0["filled"] or (s0["card"] == "short_pass" and s0["target"] == Vector2i(0, 2))
 	if not s0["filled"]:
 		set_hint("нажмите [b]«Короткий пас»[/b], затем клетку [b]левый коридор, линия 3[/b] — карта встанет в слот 1.")
+	elif not s1["filled"] and not on_script:
+		set_hint("выберите вторую карту и клетку. Следите за маршрутом и слотом «Удар»: он должен показать [b]ГОЛ[/b].")
 	elif not s1["filled"]:
 		set_hint("теперь второй [b]«Короткий пас»[/b]: [b]левый коридор, линия 4[/b]. Смотрите на маршрут и слот «Удар».")
 	elif sim["outcome"] == "goal":

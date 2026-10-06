@@ -218,6 +218,8 @@ func end_attack(outcome: String, reason: String) -> void:
 	_update_top()
 	_hint_lb.visible = false
 	_show_result(outcome, reason)
+	if _overlay and is_instance_valid(_overlay):
+		_overlay.move_to_front()
 
 
 func _show_result(outcome: String, reason: String) -> void:
@@ -263,6 +265,7 @@ func _show_result(outcome: String, reason: String) -> void:
 	else:
 		btn.text = "Следующая атака ▶"
 	btn.pressed.connect(_continue)
+	btn.focus_mode = Control.FOCUS_NONE
 	p.add_child(btn)
 	var hint := Label.new()
 	hint.text = "Пробел / Enter — продолжить"
@@ -270,11 +273,10 @@ func _show_result(outcome: String, reason: String) -> void:
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Game.C_MUTED)
 	p.add_child(hint)
-	btn.grab_focus()
 
 
 func _continue() -> void:
-	if not attack_over or _result_panel == null:
+	if not attack_over or _result_panel == null or (_overlay and is_instance_valid(_overlay)):
 		return
 	Sfx.play("click")
 	if tutorial_active:
@@ -311,7 +313,7 @@ func _input(event: InputEvent) -> void:
 				_overlay = null
 				return
 		Game.go_menu()
-	elif attack_over and _result_panel and event is InputEventKey and event.pressed and not event.echo \
+	elif attack_over and _result_panel and not (_overlay and is_instance_valid(_overlay)) and event is InputEventKey and event.pressed and not event.echo \
 			and (event.keycode == KEY_SPACE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER):
 		get_viewport().set_input_as_handled()
 		_continue()

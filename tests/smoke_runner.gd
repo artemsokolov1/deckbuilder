@@ -57,6 +57,7 @@ func run(t: SceneTree) -> void:
 	await _escape_during_animation()
 	await _double_clicks()
 	await _replay_same_seed()
+	await _regressions()
 	g.settings = saved_settings
 	g.tutorial_seen = saved_tutorial
 	g.apply_volume()
@@ -291,3 +292,50 @@ func _replay_same_seed() -> void:
 		g.start_mode(mode, 4321)
 		await frames(3)
 		check(var_to_str(scene().state) == first, "%s: «Повторить те же условия» даёт ту же атаку" % mode)
+
+
+func _regressions() -> void:
+	print("-- регрессии из ревью")
+	# 1. Enter при открытых «Правилах» после конца атаки не переходит к следующей атаке.
+	g.start_mode("c", 11)
+	await frames(3)
+	var s: GameBase = scene()
+	s._on_shot()
+	await until(func(): return s.attack_over, 3000)
+	s._on_rules()
+	var ev := InputEventKey.new()
+	ev.keycode = KEY_ENTER
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await frames(3)
+	check(s.attack_idx == 0 and s.attack_over, "Enter при открытых правилах не листает серию")
+	# 2. B: убрали слот 1, нажали карту слота 2 — другие карты всё ещё можно выбрать.
+	g.start_mode("b", 4242)
+	await frames(3)
+	s = scene()
+	await _bot_b_place_only(s)
+	s._on_remove(0)
+	var in2: int = s.state["slots"][1]["hand_idx"]
+	s._on_card_pressed(s.cards[in2])
+	var free_ok := false
+	for i in s.state["hand"].size():
+		if RulesB.slot_of_card(s.state, i) < 0 and RulesB.card_reason(s.state, i, s.active_slot) == "":
+			free_ok = true
+	check(s.active_slot == 0 and free_ok, "B: после удаления слота 1 можно снова собрать план")
+	# 4. C: мяч летит в ту клетку, что была подсвечена (ищем seed, где мяч сохранён).
+	var verified := false
+	for sd in range(12, 40):
+		g.start_mode("c", sd)
+		await frames(3)
+		s = scene()
+		var i: int = s.state["hand"].find("pass")
+		if i < 0 or s.state["events"][0] != "safe":
+			continue
+		s._on_card_pressed(s.cards[i])
+		var shown: Vector2i = s.pitch.targets.keys()[0]
+		s._on_card_pressed(s.cards[i])
+		await until(func(): return not s.busy, 3000)
+		check(s.ball_cell == shown, "C: мяч пришёл в подсвеченную клетку %s" % shown)
+		verified = true
+		break
+	check(verified, "C: нашлась атака для проверки клетки")
