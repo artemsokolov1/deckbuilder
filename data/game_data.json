@@ -35,7 +35,7 @@
       "deck": {"short_pass": 4, "switch": 2, "dribble": 2, "through": 2, "one_two": 1, "feint": 1},
       "template_order": ["center_closed", "press", "low_block"],
       "tutorial": {
-        "hand": ["short_pass", "one_two", "through", "switch", "feint", "dribble"],
+        "hand": ["short_pass", "short_pass", "through", "switch", "feint", "one_two"],
         "template": "tutorial"
       }
     },
@@ -51,7 +51,8 @@
       "events": {"safe": 6, "pressure": 3, "intercept": 1},
       "deck": {"pass": 2, "sprint": 2, "shield": 2, "switch_c": 2, "pause": 2, "risky": 2},
       "tutorial": {
-        "hand": ["pass", "shield", "pause", "sprint", "risky"]
+        "hand": ["pass", "shield", "pause", "sprint", "risky"],
+        "events": ["safe", "pressure", "safe", "safe", "intercept", "safe", "pressure", "safe", "safe", "pressure"]
       }
     }
   },

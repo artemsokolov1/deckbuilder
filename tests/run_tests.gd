@@ -181,7 +181,7 @@ func _test_b() -> void:
 	check(RulesB.place(s, 0, 0, Vector2i(0, 2)), "B: пас в слот 1")
 	check(RulesB.place(s, 1, 1, Vector2i(0, 3)), "B: стеночка в слот 2 после паса")
 	var sim := RulesB.simulate(s)
-	var exp_val: int = 2 + int(c["position_bonus"][3][0])
+	var exp_val: int = int(RulesB.card_def("short_pass")["quality"]) + int(RulesB.card_def("one_two")["quality"]) + int(c["position_bonus"][3][0])
 	check(sim["outcome"] == ("goal" if exp_val >= int(c["keeper_threshold"]) else "save") and sim["shot"]["value"] == exp_val, "B: предпросмотр удара учитывает будущую позицию")
 	var before := var_to_str(s)
 	RulesB.simulate(s)

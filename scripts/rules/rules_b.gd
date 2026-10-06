@@ -64,9 +64,9 @@ static func slot_context(state: Dictionary, slot_i: int) -> Dictionary:
 	return {"from": s0["target"], "prev": state["hand"][s0["hand_idx"]], "ok": true}
 
 
+## Почему карту нельзя поставить в слот (пустая строка — можно).
+## Завершённость атаки проверяют place/ready_reason, чтобы итог плана оставался виден.
 static func card_reason(state: Dictionary, hand_idx: int, slot_i: int) -> String:
-	if state["over"]:
-		return "Атака уже разыграна."
 	var id: String = state["hand"][hand_idx]
 	var d := card_def(id)
 	var ctx := slot_context(state, slot_i)
@@ -101,7 +101,7 @@ static func slot_of_card(state: Dictionary, hand_idx: int) -> int:
 
 
 static func place(state: Dictionary, slot_i: int, hand_idx: int, target: Vector2i) -> bool:
-	if state["over"] or not card_targets(state, hand_idx, slot_i).has(target):
+	if state["over"] or slot_i < 0 or slot_i > 1 or not card_targets(state, hand_idx, slot_i).has(target):
 		return false
 	var other := slot_of_card(state, hand_idx)
 	if other >= 0 and other != slot_i:

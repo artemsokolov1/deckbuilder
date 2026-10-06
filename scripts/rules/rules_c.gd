@@ -28,7 +28,7 @@ static func card_def(id: String) -> Dictionary:
 
 static func new_attack(series_seed: int, attack_idx: int, tutorial: bool = false) -> Dictionary:
 	var c := cfg()
-	var rng := Seeds.rng_for(series_seed if not tutorial else 7, "c_attack", attack_idx)
+	var rng := Seeds.rng_for(series_seed, "c_attack", attack_idx)
 	var deck := Seeds.deck_from_counts(c["deck"])
 	Seeds.shuffle(deck, rng)
 	var events: Array = []
@@ -36,6 +36,9 @@ static func new_attack(series_seed: int, attack_idx: int, tutorial: bool = false
 		for i in int(c["events"][t]):
 			events.append(t)
 	Seeds.shuffle(events, rng)
+	if tutorial and c["tutorial"].has("events"):
+		# Обучение: порядок событий задан вручную (состав тот же), чтобы показать и успех, и риск.
+		events = c["tutorial"]["events"].duplicate()
 	var hand: Array = c["tutorial"]["hand"].duplicate() if tutorial else deck.slice(0, int(c["hand_size"]))
 	var used: Array = []
 	used.resize(hand.size())
