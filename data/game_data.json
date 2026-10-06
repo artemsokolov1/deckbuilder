@@ -1,0 +1,202 @@
+{
+  "_comment": "Все числа баланса, тексты карт и планы обороны. Клетка = [коридор, линия]; коридор 0=левый,1=центр,2=правый; линия 0=своя (снизу), 3=у ворот. Изменения баланса описаны в docs/BALANCE.md.",
+  "series": {
+    "attacks": 5,
+    "goals_to_win": 3
+  },
+
+  "modes": {
+    "a": {
+      "title": "A · «Комбинация»",
+      "menu_line": "Разбирайте оборону шаг за шагом: каждая карта двигает мяч, после неё сдвигается оборона.",
+      "start": [1, 0],
+      "tempo": 5,
+      "hand_size": 5,
+      "mulligan_max": 2,
+      "shot_cost": 1,
+      "shot_lines": [2, 3],
+      "position_bonus": [[0, 0, 0], [0, 0, 0], [1, 2, 1], [2, 3, 2]],
+      "keeper_threshold": 5,
+      "deck": {"short_pass": 4, "switch": 2, "dribble": 2, "through": 2, "one_two": 1, "feint": 1},
+      "template_order": ["center_closed", "press", "low_block"],
+      "tutorial": {
+        "hand": ["short_pass", "short_pass", "one_two", "feint", "switch"],
+        "template": "tutorial"
+      }
+    },
+    "b": {
+      "title": "B · «Три касания»",
+      "menu_line": "Заранее соберите план из двух действий и удара, нажмите «Разыграть» и смотрите, сработает ли он.",
+      "start": [1, 1],
+      "hand_size": 6,
+      "shot_lines": [2, 3],
+      "position_bonus": [[0, 0, 0], [0, 0, 0], [1, 2, 1], [2, 3, 2]],
+      "keeper_threshold": 4,
+      "deck": {"short_pass": 4, "switch": 2, "dribble": 2, "through": 2, "one_two": 1, "feint": 1},
+      "template_order": ["center_closed", "press", "low_block"],
+      "tutorial": {
+        "hand": ["short_pass", "one_two", "through", "switch", "feint", "dribble"],
+        "template": "tutorial"
+      }
+    },
+    "c": {
+      "title": "C · «Ещё один пас»",
+      "menu_line": "Бейте сейчас или рискните ещё одной передачей: шанс гола растёт, но растёт и риск потери.",
+      "base_chance": 35,
+      "chance_per_quality": 12,
+      "max_chance": 90,
+      "hand_size": 5,
+      "max_cards_played": 4,
+      "pressure_limit": 2,
+      "events": {"safe": 6, "pressure": 3, "intercept": 1},
+      "deck": {"pass": 2, "sprint": 2, "shield": 2, "switch_c": 2, "pause": 2, "risky": 2},
+      "tutorial": {
+        "hand": ["pass", "shield", "pause", "sprint", "risky"]
+      }
+    }
+  },
+
+  "cards": {
+    "a": {
+      "short_pass": {"name": "Короткий пас", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 0,
+        "text": "Вперёд на 1 линию: прямо или в соседний коридор. +1 к качеству."},
+      "switch": {"name": "Перевод", "cost": 1, "advance": 0, "lane": "other", "path": "target", "quality": 0, "quality_beat": 0, "protect": 0,
+        "text": "Мяч в другой коридор на той же линии. Обходит перекрытый участок."},
+      "dribble": {"name": "Обводка", "cost": 2, "advance": 1, "lane": "same", "path": "target", "quality": 0, "quality_beat": 1, "protect": 1,
+        "text": "Вперёд на 1 линию прямо. Проходит одну опасную зону (+1 к качеству за обыгранного)."},
+      "through": {"name": "Разрезающий пас", "cost": 2, "advance": 2, "lane": "adjacent", "path": "run", "quality": 2, "quality_beat": 0, "protect": 0,
+        "text": "Вперёд на 2 линии. Проверяет обе клетки пути. +2 к качеству."},
+      "one_two": {"name": "Стеночка", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 99, "requires_prev": "short_pass",
+        "text": "Только сразу после короткого паса. Вперёд на 1 линию, перехват невозможен. +1 к качеству."},
+      "feint": {"name": "Финт", "cost": 1, "advance": 0, "lane": "none", "path": "none", "quality": 1, "quality_beat": 0, "protect": 0,
+        "text": "Мяч на месте. Оборона делает свой шаг, пока вы ждёте. +1 к качеству."}
+    },
+    "b": {
+      "short_pass": {"name": "Короткий пас", "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 0,
+        "text": "Вперёд на 1 линию: прямо или в соседний коридор. +1 к качеству."},
+      "switch": {"name": "Перевод", "advance": 0, "lane": "other", "path": "target", "quality": 0, "quality_beat": 0, "protect": 0,
+        "text": "Мяч в другой коридор на той же линии."},
+      "dribble": {"name": "Обводка", "advance": 1, "lane": "same", "path": "target", "quality": 0, "quality_beat": 1, "protect": 1,
+        "text": "Вперёд на 1 линию строго прямо. Проходит одну опасную зону (+1 к качеству за обыгранного)."},
+      "through": {"name": "Разрезающий пас", "advance": 2, "lane": "adjacent", "path": "run", "quality": 1, "quality_beat": 0, "protect": 0, "from_max_line": 1,
+        "text": "Вперёд на 2 линии, проверяет обе клетки пути. +1 к качеству. Только со 2-й линии и ниже."},
+      "one_two": {"name": "Стеночка", "advance": 1, "lane": "adjacent", "path": "target", "quality": 0, "quality_beat": 0, "protect": 99, "requires_prev": "short_pass", "slot": 1,
+        "text": "Только в слот «Развитие» после короткого паса. Вперёд на 1 линию без риска. +1 к качеству."},
+      "feint": {"name": "Финт", "advance": 0, "lane": "none", "path": "none", "quality": 1, "quality_beat": 0, "protect": 0,
+        "text": "Мяч на месте, оборона делает шаг. +1 к качеству."}
+    },
+    "c": {
+      "pass": {"name": "Пас", "draw_count": 1, "quality": 1, "relief": 0, "ignore_pressure": false,
+        "text": "Открыть 1 событие обороны. Мяч сохранён → +1 к качеству."},
+      "sprint": {"name": "Рывок", "draw_count": 2, "quality": 2, "relief": 0, "ignore_pressure": false,
+        "text": "Открыть 2 события по очереди. Оба пережили → +2 к качеству."},
+      "shield": {"name": "Прикрыть мяч", "draw_count": 1, "quality": 1, "relief": 0, "ignore_pressure": true,
+        "text": "Открыть 1 событие, давление из него не считается. +1 к качеству. От перехвата не спасает."},
+      "switch_c": {"name": "Перевод", "draw_count": 1, "quality": 1, "relief": 1, "ignore_pressure": false,
+        "text": "Сначала снять 1 давление, затем открыть 1 событие. +1 к качеству при успехе."},
+      "pause": {"name": "Пауза", "draw_count": 0, "quality": 0, "relief": 1, "ignore_pressure": false, "needs_pressure": true,
+        "text": "Снять 1 давление. Событие не открывается, качество не растёт."},
+      "risky": {"name": "Рискованный пас", "draw_count": 2, "quality": 3, "relief": 0, "ignore_pressure": false,
+        "text": "Открыть 2 события по очереди. Оба пережили → +3 к качеству."}
+    }
+  },
+
+  "defense": {
+    "a": {
+      "center_closed": {
+        "name": "Центр закрыт",
+        "hint": "Центральный коридор перекрыт почти всё время — ищите фланги.",
+        "extra_pressure": 0,
+        "states": [
+          [[1, 1], [1, 2], [0, 3]],
+          [[1, 1], [1, 2], [2, 2]],
+          [[1, 2], [1, 3], [0, 2], [2, 3]],
+          [[1, 1], [1, 3], [2, 3]],
+          [[1, 2], [1, 3], [0, 3], [2, 2]],
+          [[1, 1], [1, 2], [2, 2]]
+        ]
+      },
+      "press": {
+        "name": "Прессинг",
+        "hint": "Опасная зона прыгает каждый ход — смотрите на следующий шаг, а не только на текущий.",
+        "extra_pressure": 0,
+        "states": [
+          [[1, 1], [2, 1], [0, 3]],
+          [[0, 1], [0, 2], [1, 2], [2, 3]],
+          [[0, 2], [2, 2], [1, 3], [1, 1]],
+          [[1, 1], [0, 3], [2, 2], [1, 2]],
+          [[2, 1], [1, 2], [0, 2], [2, 3]],
+          [[0, 1], [1, 3], [2, 3], [0, 3]]
+        ]
+      },
+      "low_block": {
+        "name": "Низкий блок",
+        "hint": "Впереди свободно, но у ворот тесно: подготовьте качество заранее и бейте из незакрытого коридора.",
+        "extra_pressure": 0,
+        "states": [
+          [[0, 3], [1, 3], [1, 2]],
+          [[1, 3], [2, 3], [1, 2]],
+          [[0, 3], [1, 3], [2, 2]],
+          [[0, 2], [1, 3], [2, 3]],
+          [[0, 3], [1, 2], [2, 3]],
+          [[1, 3], [2, 3], [0, 2]]
+        ]
+      },
+      "tutorial": {
+        "name": "Тренировка",
+        "hint": "Тренировочная оборона: центр перед воротами закрыт.",
+        "extra_pressure": 0,
+        "states": [
+          [[1, 2], [1, 3]],
+          [[1, 2], [1, 3]],
+          [[1, 2], [1, 3]],
+          [[1, 2], [1, 3]],
+          [[1, 2], [1, 3]],
+          [[1, 2], [1, 3]]
+        ]
+      }
+    },
+    "b": {
+      "center_closed": {
+        "name": "Центр закрыт",
+        "hint": "Центр перекрыт на всех трёх шагах — планируйте выход на фланг.",
+        "extra_pressure": 0,
+        "states": [
+          [[1, 2], [1, 3], [0, 3]],
+          [[1, 2], [1, 3], [2, 2]],
+          [[1, 2], [1, 3], [0, 2]]
+        ]
+      },
+      "press": {
+        "name": "Прессинг",
+        "hint": "Каждый шаг опасная зона другая — проверьте, где она будет в момент каждого касания.",
+        "extra_pressure": 0,
+        "states": [
+          [[0, 2], [1, 2], [1, 3]],
+          [[2, 2], [2, 3], [0, 3]],
+          [[1, 3], [0, 2], [2, 2]]
+        ]
+      },
+      "low_block": {
+        "name": "Низкий блок",
+        "hint": "Последняя линия закрыта плотно — удар с неё под давлением; ищите свободный коридор к моменту удара.",
+        "extra_pressure": 0,
+        "states": [
+          [[0, 3], [1, 3], [2, 3]],
+          [[0, 3], [1, 3], [1, 2]],
+          [[1, 3], [2, 3], [0, 2]]
+        ]
+      },
+      "tutorial": {
+        "name": "Тренировка",
+        "hint": "Тренировочная оборона: центр у ворот закрыт.",
+        "extra_pressure": 0,
+        "states": [
+          [[1, 3], [2, 3]],
+          [[1, 3], [2, 3]],
+          [[1, 3], [2, 3]]
+        ]
+      }
+    }
+  }
+}
