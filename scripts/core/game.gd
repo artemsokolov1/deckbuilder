@@ -2,9 +2,10 @@ extends Node
 ## Автозагрузка Game: настройки, текущая серия, переходы между сценами,
 ## локальные оценки и история. Никакой сетевой телеметрии.
 
-const SETTINGS_PATH := "user://settings.cfg"
-const RATINGS_PATH := "user://ratings.cfg"
-const HISTORY_PATH := "user://history.cfg"
+# Пути — переменные, чтобы автотесты писали в отдельные файлы и не трогали настройки игрока.
+var SETTINGS_PATH := "user://settings.cfg"
+var RATINGS_PATH := "user://ratings.cfg"
+var HISTORY_PATH := "user://history.cfg"
 
 const MENU_SCENE := "res://scenes/main_menu.tscn"
 const RESULTS_SCENE := "res://scenes/results.tscn"

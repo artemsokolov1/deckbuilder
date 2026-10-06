@@ -34,6 +34,12 @@ func scene() -> Node:
 func run(t: SceneTree) -> void:
 	tree = t
 	g = tree.root.get_node("Game")
+	# Отдельные файлы: прогон не меняет настройки, историю и оценки игрока.
+	g.SETTINGS_PATH = "user://test_settings.cfg"
+	g.HISTORY_PATH = "user://test_history.cfg"
+	g.RATINGS_PATH = "user://test_ratings.cfg"
+	var saved_settings: Dictionary = g.settings.duplicate()
+	var saved_tutorial: Dictionary = g.tutorial_seen.duplicate()
 	g.settings["fast"] = true
 	g.settings["volume"] = 0.0
 	for m in g.tutorial_seen:
@@ -51,6 +57,11 @@ func run(t: SceneTree) -> void:
 	await _escape_during_animation()
 	await _double_clicks()
 	await _replay_same_seed()
+	g.settings = saved_settings
+	g.tutorial_seen = saved_tutorial
+	g.apply_volume()
+	for f in ["test_settings.cfg", "test_history.cfg", "test_ratings.cfg"]:
+		DirAccess.remove_absolute(OS.get_user_data_dir().path_join(f))
 	print("=== Итог прогона: %s ===" % ("OK" if fails == 0 else "%d провалов" % fails))
 	tree.quit(1 if fails > 0 else 0)
 
