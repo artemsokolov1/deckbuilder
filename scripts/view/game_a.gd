@@ -34,7 +34,7 @@ func _build_mode_ui() -> void:
 	panel(right, Rect2(0, 0, 632, 150))
 	_def_title = lbl(right, "", Vector2(14, 8), 20, Game.C_TEXT)
 	_def_hint = lbl(right, "", Vector2(14, 38), 14, Game.C_MUTED, 320)
-	lbl(right, "План обороны (меняется после каждого вашего действия):", Vector2(14, 118), 12, Game.C_MUTED, 330)
+	lbl(right, "Оборона шагает после каждого вашего действия →", Vector2(14, 122), 12, Game.C_MUTED)
 	for i in 3:
 		var m := MiniPlan.new()
 		m.position = Vector2(344 + i * 96, 14)
@@ -50,9 +50,9 @@ func _build_mode_ui() -> void:
 	_tempo_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tempo_pips.draw.connect(_draw_tempo)
 	right.add_child(_tempo_pips)
-	_quality_lb = lbl(right, "", Vector2(214, 172), 19, Game.C_TEXT)
+	_quality_lb = lbl(right, "", Vector2(206, 172), 19, Game.C_TEXT)
 	_mull_btn = button(right, "Обмен карт", Rect2(424, 166, 196, 42), _on_mulligan, 16)
-	_mull_cancel = button(right, "Отмена", Rect2(330, 166, 88, 42), _cancel_mulligan, 15)
+	_mull_cancel = button(right, "Отмена", Rect2(398, 166, 82, 42), _cancel_mulligan, 15)
 	_mull_cancel.visible = false
 	# --- инфо
 	panel(right, Rect2(0, 224, 632, 162))
@@ -94,6 +94,8 @@ func _refresh() -> void:
 	var can_m := RulesA.can_mulligan(state) and not busy
 	_mull_btn.visible = can_m or mull_mode
 	_mull_cancel.visible = mull_mode
+	_mull_btn.position.x = 488.0 if mull_mode else 424.0
+	_mull_btn.size.x = 132.0 if mull_mode else 196.0
 	if mull_mode:
 		_mull_btn.text = "Заменить: %d" % mull_marks.size() if mull_marks.size() > 0 else "Отметьте карты"
 		_mull_btn.disabled = mull_marks.is_empty()
@@ -333,7 +335,7 @@ func _play(idx: int, cell: Vector2i) -> void:
 		_refresh()
 		return
 	_build_hand()
-	_update_shot_button()
+	_shot_btn.disabled = true
 	_mull_btn.visible = false
 	_info.text = "[b]%s[/b] → %s" % [d["name"], Pitch.cell_name(cell)]
 	_next_lb.text = ""

@@ -146,6 +146,41 @@ func get_steps(name: String, t: SceneTree) -> Array:
 					s._on_card_pressed(s.cards[3])],
 				["wait", 150], ["shot", "c_after2"],
 			]
+		"misc":
+			steps = [
+				["call", func():
+					for m in g.tutorial_seen: g.tutorial_seen[m] = true
+					g.start_mode("a", 999)],
+				["wait", 20],
+				["call", func():
+					var s = scene()
+					s._on_mulligan()
+					s._on_card_pressed(s.cards[1])
+					s._on_card_pressed(s.cards[3])],
+				["wait", 10], ["shot", "a_mulligan"],
+				["call", func():
+					var s = scene()
+					s._cancel_mulligan()
+					# найдём ход в опасную зону и сыграем его
+					for i in s.state["hand"].size():
+						for tg in RulesA.card_targets(s.state, i):
+							if RulesA.preview_card(s.state, i, tg)["intercepted"] and s.state["actions"] == 0:
+								s._on_card_pressed(s.cards[i])
+								s.pitch.hover_cell = tg
+								s._on_cell_hovered(tg)
+								return],
+				["wait", 10], ["shot", "a_risk_preview"],
+				["call", func():
+					var s = scene()
+					if s.selected >= 0:
+						s._on_cell_clicked(s.pitch.hover_cell)],
+				["wait", 150], ["shot", "a_intercept_result"],
+				["call", func(): scene()._on_settings()],
+				["wait", 10], ["shot", "settings"],
+				["call", func():
+					g.start_mode("c", 5, true)],
+				["wait", 20], ["shot", "c_tut_page"],
+			]
 		"results":
 			steps = [
 				["call", func():

@@ -306,7 +306,7 @@ func _input(event: InputEvent) -> void:
 				_overlay.close_panel()
 				_overlay = null
 				return
-			if _overlay is TutorialOverlay and not Game.want_tutorial:
+			if _overlay is TutorialOverlay and not _overlay.allow_skip:
 				_overlay.queue_free()
 				_overlay = null
 				return

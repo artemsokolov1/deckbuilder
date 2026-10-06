@@ -7,6 +7,10 @@ var state: Dictionary = {}
 var selected := -1
 var cards: Array[CardView] = []
 var ball_cell := Vector2i(1, 0)
+# Что показано игроку прямо сейчас: во время анимации отстаёт от состояния правил,
+# чтобы итог не раскрывался раньше, чем открыто событие.
+var _disp_pressure := 0
+var _disp_drawn := 0
 
 var _deck_vis: Control
 var _deck_lb: RichTextLabel
@@ -89,14 +93,13 @@ func _start_attack(tutorial: bool) -> void:
 
 
 # ------------------------------------------------------------------ отображение
-func _defense_points() -> Array:
+func _defense_points(p: int) -> Array:
 	# Защитники перед мячом в каждом коридоре + по одному вплотную за каждое давление.
 	var pts: Array = []
 	var ahead := mini(3, ball_cell.y + 1)
 	for x in 3:
 		if x != ball_cell.x or ahead != ball_cell.y:
 			pts.append(PitchView.def_pos(Vector2i(x, ahead)))
-	var p := int(state.get("pressure", 0))
 	var ball_p := PitchView.att_pos(ball_cell)
 	var close := [Vector2(26, -6), Vector2(-4, -30)]
 	for i in mini(p, 2):
@@ -104,11 +107,12 @@ func _defense_points() -> Array:
 	return pts
 
 
-func _place_defense(d: float) -> Tween:
+func _place_defense(d: float, p: int = -1) -> Tween:
+	var pts := _defense_points(int(state.get("pressure", 0)) if p < 0 else p)
 	if d <= 0:
-		pitch._place_points(_defense_points(), 0.0)
+		pitch._place_points(pts, 0.0)
 		return null
-	return pitch.move_defender_points(_defense_points(), d)
+	return pitch.move_defender_points(pts, d)
 
 
 func _target_cell(card_id: String, q_after: int) -> Vector2i:
@@ -123,14 +127,13 @@ func _target_cell(card_id: String, q_after: int) -> Vector2i:
 
 
 func _refresh() -> void:
+	_disp_pressure = state["pressure"]
+	_disp_drawn = state["drawn"].size()
 	var q: int = state["quality"]
 	_chance_lb.text = "%d%%" % RulesC.goal_chance(q)
-	_quality_lb.text = "Качество момента: %d   (+%d%% за единицу, не выше %d%%)" % [q, RulesC.cfg()["chance_per_quality"], RulesC.cfg()["max_chance"]]
+	_quality_lb.text = "Качество момента: %d  (+%d%% за ед., макс. %d%%)" % [q, RulesC.cfg()["chance_per_quality"], RulesC.cfg()["max_chance"]]
 	_played_lb.text = "Сыграно карт: %d из %d" % [state["played"], RulesC.cfg()["max_cards_played"]]
-	var cnt := RulesC.counts(state)
-	var n: int = cnt["safe"] + cnt["pressure"] + cnt["intercept"]
-	_deck_lb.text = "Осталось %d: [color=#86d46f]безопасно %d[/color] · [color=#f0a43a]давление %d[/color] · [color=#e4553f]перехват %d[/color]" % [
-		n, cnt["safe"], cnt["pressure"], cnt["intercept"]]
+	_deck_lb.text = _deck_text()
 	_deck_vis.queue_redraw()
 	_pressure_vis.queue_redraw()
 	_build_hand()
@@ -139,20 +142,27 @@ func _refresh() -> void:
 	_tutorial_hint()
 
 
+func _deck_text() -> String:
+	var cnt := _shown_counts()
+	var n: int = cnt["safe"] + cnt["pressure"] + cnt["intercept"]
+	return "Осталось %d: [color=#86d46f]безопасно %d[/color] · [color=#f0a43a]давление %d[/color] · [color=#e4553f]перехват %d[/color]" % [
+		n, cnt["safe"], cnt["pressure"], cnt["intercept"]]
+
+
 func _draw_deck() -> void:
 	if state.is_empty():
 		return
 	# Открытые события (затемнены) слева, затем остаток колоды рубашкой вверх, сгруппированный по типу.
 	var x := 0.0
 	var f := ThemeDB.fallback_font
-	for e in state.get("drawn", []):
+	for e in state["drawn"].slice(0, _disp_drawn):
 		_deck_vis.draw_rect(Rect2(x, 4, 34, 40), Color(EV_COL[e], 0.25))
 		_deck_vis.draw_rect(Rect2(x, 4, 34, 40), Color(EV_COL[e], 0.6), false, 1.5)
 		_deck_vis.draw_line(Vector2(x + 6, 10), Vector2(x + 28, 38), Color(1, 1, 1, 0.3), 2)
 		x += 38
-	if not state.get("drawn", []).is_empty():
+	if _disp_drawn > 0:
 		x += 10
-	var cnt := RulesC.counts(state)
+	var cnt := _shown_counts()
 	for t in ["safe", "pressure", "intercept"]:
 		for i in cnt[t]:
 			_deck_vis.draw_rect(Rect2(x, 4, 34, 40), EV_COL[t].darkened(0.1))
@@ -162,9 +172,17 @@ func _draw_deck() -> void:
 			x += 38
 
 
+## Остаток колоды так, как его видит игрок: ещё не показанные открытые события считаются в остатке.
+func _shown_counts() -> Dictionary:
+	var cnt := RulesC.counts(state)
+	for e in state["drawn"].slice(_disp_drawn):
+		cnt[e] += 1
+	return cnt
+
+
 func _draw_pressure() -> void:
 	var limit: int = RulesC.cfg()["pressure_limit"]
-	var p: int = state.get("pressure", 0)
+	var p: int = _disp_pressure
 	for i in limit:
 		var c := Vector2(14 + i * 34, 14)
 		_pressure_vis.draw_circle(c, 12, EV_COL["pressure"] if i < p else Color(1, 1, 1, 0.12))
@@ -309,20 +327,22 @@ func _play(idx: int) -> void:
 	_shot_btn.disabled = true
 	_info.text = "[b]%s[/b]: открываем события обороны…" % d["name"]
 	_next_lb.text = ""
+	var running_p: int = _pressure_before(r)
 	if r["relieved"] > 0:
 		pitch.float_text("−%d давление" % r["relieved"], PitchView.att_pos(ball_cell) + Vector2(0, -34), Game.C_INFO)
-		_pressure_vis.queue_redraw()
-		await _place_defense(dur(0.3)).finished
-	# События открываются по одному; давление сразу видно на поле.
-	var running_p: int = maxi(0, _pressure_before(r))
+		_show_pressure(running_p)
+		await _place_defense(dur(0.3), running_p).finished
+	# События открываются по одному; колода, счётчик давления и защитники обновляются по ходу.
 	for k in r["draws"].size():
 		var ev: Dictionary = r["draws"][k]
 		await _reveal_event(ev, k + 1, r["draws"].size(), int(d["draw_count"]))
+		_disp_drawn += 1
+		_deck_vis.queue_redraw()
+		_deck_lb.text = _deck_text()
 		if ev["type"] == "pressure" and not ev["ignored"]:
 			running_p += 1
 			_show_pressure(running_p)
-			await _place_defense_with(running_p, dur(0.3)).finished
-	_deck_vis.queue_redraw()
+			await _place_defense(dur(0.3), running_p).finished
 	if r["lost"]:
 		if r["outcome"] == "intercept":
 			Sfx.play("intercept")
@@ -371,18 +391,8 @@ func _pressure_before(r: Dictionary) -> int:
 
 
 func _show_pressure(p: int) -> void:
-	var saved: int = state["pressure"]
-	state["pressure"] = p
+	_disp_pressure = p
 	_pressure_vis.queue_redraw()
-	state["pressure"] = saved
-
-
-func _place_defense_with(p: int, d: float) -> Tween:
-	var saved: int = state["pressure"]
-	state["pressure"] = p
-	var tw := _place_defense(d)
-	state["pressure"] = saved
-	return tw
 
 
 func _reveal_event(ev: Dictionary, k: int, total: int, planned: int) -> Signal:

@@ -94,8 +94,8 @@ func _ready() -> void:
 	add_child(_title_lb)
 	_fit_title()
 	_desc_lb = Label.new()
-	_desc_lb.position = Vector2(9, 96)
-	_desc_lb.size = Vector2(SIZE.x - 18, 76)
+	_desc_lb.position = Vector2(9, 92)
+	_desc_lb.size = Vector2(SIZE.x - 18, 80)
 	_desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_desc_lb.add_theme_font_size_override("font_size", 12)
 	_desc_lb.add_theme_color_override("font_color", Color("3a2b1c"))
@@ -171,9 +171,10 @@ func _draw() -> void:
 		var f := ThemeDB.fallback_font
 		draw_string(f, c + Vector2(-5, 7), str(cost), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("2b1d10"))
 	# значок
-	_draw_icon(Rect2(10, 52, SIZE.x - 20, 42), accent.darkened(0.25))
+	_draw_icon(Rect2(10, 50, SIZE.x - 20, 40), accent.darkened(0.25))
 	if marked:
-		draw_string(ThemeDB.fallback_font, Vector2(10, SIZE.y - 6), "на обмен", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Game.C_INFO.darkened(0.3))
+		draw_style_box(Game.box(Game.C_INFO, Color(0, 0, 0, 0), 6, 0), Rect2(8, 52, 74, 20))
+		draw_string(ThemeDB.fallback_font, Vector2(14, 67), "на обмен", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("10202a"))
 	if tag != "":
 		var f2 := ThemeDB.fallback_font
 		var tw := f2.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x

@@ -34,7 +34,7 @@ func _build_mode_ui() -> void:
 	panel(right, Rect2(0, 0, 632, 140))
 	_def_title = lbl(right, "", Vector2(14, 8), 20)
 	_def_hint = lbl(right, "", Vector2(14, 38), 14, Game.C_MUTED, 320)
-	lbl(right, "Все три положения обороны известны заранее:", Vector2(14, 112), 12, Game.C_MUTED, 330)
+	lbl(right, "Все три положения обороны известны заранее →", Vector2(14, 114), 12, Game.C_MUTED)
 	for i in 3:
 		var m := MiniPlan.new()
 		m.position = Vector2(344 + i * 96, 10)
