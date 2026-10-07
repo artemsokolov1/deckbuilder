@@ -67,7 +67,8 @@ static func pressure_cells(ball: Vector2i, danger: Array) -> Array:
 
 
 ## Детерминированный удар: качество + бонус позиции − давление ≥ порог вратаря.
-static func shot_eval(cfg: Dictionary, quality: int, ball: Vector2i, danger: Array, extra_pressure: int) -> Dictionary:
+## shooter_bonus — поправка за удар бьющего футболиста (режим A), в B всегда 0.
+static func shot_eval(cfg: Dictionary, quality: int, ball: Vector2i, danger: Array, extra_pressure: int, shooter_bonus: int = 0) -> Dictionary:
 	var info := {
 		"available": cfg["shot_lines"].has(ball.y),
 		"quality": quality,
@@ -75,6 +76,7 @@ static func shot_eval(cfg: Dictionary, quality: int, ball: Vector2i, danger: Arr
 		"pressure": 0,
 		"pressure_cells": [],
 		"extra_pressure": extra_pressure,
+		"shooter_bonus": shooter_bonus,
 		"value": 0,
 		"threshold": int(cfg["keeper_threshold"]),
 		"goal": false,
@@ -85,12 +87,15 @@ static func shot_eval(cfg: Dictionary, quality: int, ball: Vector2i, danger: Arr
 	info["pos_bonus"] = int(cfg["position_bonus"][ball.y][ball.x])
 	info["pressure_cells"] = pc
 	info["pressure"] = pc.size() + extra_pressure
-	info["value"] = quality + info["pos_bonus"] - info["pressure"]
+	info["value"] = quality + info["pos_bonus"] + shooter_bonus - info["pressure"]
 	info["goal"] = info["value"] >= info["threshold"]
 	return info
 
 
 static func shot_breakdown(info: Dictionary) -> String:
-	var s := "качество %d + позиция %d − давление %d = [b]%d[/b] против порога вратаря %d" % [
-		info["quality"], info["pos_bonus"], info["pressure"], info["value"], info["threshold"]]
+	var sb := ""
+	if info.has("shooter_name"):
+		sb = " %s удар %s (%s)" % ["+" if info["shooter_bonus"] >= 0 else "−", absi(info["shooter_bonus"]), info["shooter_name"]]
+	var s := "качество %d + позиция %d%s − давление %d = [b]%d[/b] против порога вратаря %d" % [
+		info["quality"], info["pos_bonus"], sb, info["pressure"], info["value"], info["threshold"]]
 	return s

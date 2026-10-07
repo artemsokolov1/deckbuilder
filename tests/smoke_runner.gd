@@ -48,10 +48,10 @@ func run(t: SceneTree) -> void:
 	var outcomes := {}
 	for mode in ["a", "b", "c"]:
 		await _series(mode, 1000 + mode.unicode_at(0))
-		outcomes["win" if g.goals() >= 3 else "loss"] = true
+		outcomes[g.series_result()] = true
 		for at in g.attacks:
 			outcomes[at["outcome"]] = true
-	check(outcomes.has("win") and outcomes.has("loss"), "серии закончились и победой, и поражением")
+	check(outcomes.has("win") and (outcomes.has("loss") or outcomes.has("draw")), "серии закончились и победой, и не-победой (%s)" % ", ".join(PackedStringArray(outcomes.keys())))
 	check(outcomes.has("goal") and outcomes.has("save") and outcomes.has("intercept"), "встретились гол, сейв и перехват")
 	await _tutorial_flow()
 	await _escape_during_animation()
@@ -85,10 +85,35 @@ func _series(mode: String, sd: int) -> void:
 		check(ended, "%s: атака %d завершилась (%s)" % [mode, k + 1, s.state.get("outcome", "?")])
 		s._continue()
 		await frames(2)
+		if mode == "a":
+			check(s.phase == "defense" and not s.attack_over, "a: после атаки %d атакует соперник" % (k + 1))
+			await _bot_defend(s)
+			var dended := await until(func(): return s.attack_over, 3000)
+			check(dended, "a: защита %d завершилась (%s), счёт %d:%d" % [k + 1, s.dstate.get("outcome", "?"), g.goals(), g.opp_goals()])
+			s._continue()
+			await frames(2)
 	var at_results := await until(func(): return scene() != null and scene().scene_file_path.ends_with("results.tscn"))
 	check(at_results, "%s: после 5 атак показан экран итогов" % mode)
 	check(g.attacks.size() == 5, "%s: записано 5 атак (голов: %d)" % [mode, g.goals()])
+	if mode == "a":
+		check(g.defenses.size() == 5, "a: записано 5 атак соперника, итог матча %d:%d (%s)" % [g.goals(), g.opp_goals(), g.series_result()])
 	await frames(5)
+
+
+## Защита: лучшая расстановка (одна из трёх карт на один из шагов) через обработчики интерфейса.
+func _bot_defend(s: GameBase) -> void:
+	var best := [-1, -1]
+	for i in s.dstate["hand"].size():
+		for k in RulesDefend.STEPS:
+			var probe: Dictionary = s.dstate.duplicate(true)
+			if RulesDefend.place(probe, i, k) and RulesDefend.simulate(probe)["outcome"] != "goal":
+				best = [i, k]
+	if best[0] >= 0:
+		s._on_card_pressed(s.cards[best[0]])
+		s._on_cell_clicked(RulesDefend.step_cell(s.dstate, best[1]))
+		check(s.dstate["placed"][best[1]] == best[0], "a: защитник поставлен через интерфейс")
+	s._on_defend()
+	s._on_defend()
 
 
 func _bot_a(s: GameBase) -> void:

@@ -13,6 +13,7 @@ func _initialize() -> void:
 			samples = int(a.substr(8))
 	print("=== Баланс (выборка: %d атак на шаблон) ===" % samples)
 	_balance_a()
+	_balance_defense()
 	_balance_b()
 	_balance_c()
 	quit()
@@ -20,17 +21,17 @@ func _initialize() -> void:
 
 # ----------------------------------------------------------------- A
 # Быстрый перебор с мемоизацией. Переходы через Moves.resolve / Moves.shot_eval (как в RulesA).
-func _a_dfs(plan: Dictionary, ball: Vector2i, tempo: int, q: int, hand: Array, step: int, prev: String) -> Dictionary:
+func _a_dfs(plan: Dictionary, ball: Vector2i, tempo: int, q: int, hand: Array, step: int, prev: String, holder: String = "") -> Dictionary:
 	var sorted_hand := hand.duplicate()
 	sorted_hand.sort()
-	var key := "%d,%d,%d,%d,%d,%s,%s" % [ball.x, ball.y, tempo, q, step, prev, ",".join(sorted_hand)]
+	var key := "%d,%d,%d,%d,%d,%s,%s,%s" % [ball.x, ball.y, tempo, q, step, prev, holder, ",".join(sorted_hand)]
 	if _memo.has(key):
 		return _memo[key]
 	var c := RulesA.cfg()
 	var res := {"goals": 0, "best": -99, "any_action": false}
 	var dz := Defense.state_at(plan, step)
 	if c["shot_lines"].has(ball.y) and tempo >= int(c["shot_cost"]):
-		var info := Moves.shot_eval(c, q, ball, dz, int(plan["extra_pressure"]))
+		var info := Moves.shot_eval(c, q, ball, dz, int(plan["extra_pressure"]), RulesA.shooter_bonus(holder))
 		res["any_action"] = true
 		res["best"] = info["value"] - info["threshold"]
 		if info["goal"]:
@@ -54,7 +55,7 @@ func _a_dfs(plan: Dictionary, ball: Vector2i, tempo: int, q: int, hand: Array, s
 				continue
 			var h2 := hand.duplicate()
 			h2.remove_at(i)
-			var sub := _a_dfs(plan, t, tempo - int(d["cost"]), q + int(r["quality"]), h2, step + 1, id)
+			var sub := _a_dfs(plan, t, tempo - int(d["cost"]), q + int(r["quality"]), h2, step + 1, d["action"], id)
 			res["goals"] += sub["goals"]
 			res["best"] = maxi(res["best"], sub["best"])
 	_memo[key] = res
@@ -63,7 +64,7 @@ func _a_dfs(plan: Dictionary, ball: Vector2i, tempo: int, q: int, hand: Array, s
 
 func _a_eval(state: Dictionary) -> Dictionary:
 	_memo = {}
-	return _a_dfs(state["plan"], state["ball"], state["tempo"], state["quality"], state["hand"], state["step"], state["prev"])
+	return _a_dfs(state["plan"], state["ball"], state["tempo"], state["quality"], state["hand"], state["step"], state["prev"], state["holder"])
 
 
 func _balance_a() -> void:
@@ -303,3 +304,43 @@ func _binom(n: int, k: int) -> float:
 	for i in k:
 		r = r * (n - i) / (i + 1)
 	return r
+
+
+# ----------------------------------------------------------------- защита в A
+func _balance_defense() -> void:
+	var c := RulesA.cfg()
+	print("\n--- Режим A, защита: рука %d, мест %d, реакция вратаря %d" % [c["defense_hand"], c["defense_slots"], c["keeper"]["reaction"]])
+	var n := samples * 3
+	var best_ok := 0
+	var none_ok := 0
+	var rand_ok := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for k in n:
+		var a := RulesA.new_attack(30000 + k, k % 5)
+		var s := RulesDefend.new_defense(30000 + k, k % 5, a["deck"])
+		if RulesDefend.simulate(s)["outcome"] != "goal":
+			none_ok += 1
+		var best := false
+		var options: Array = []
+		# все расстановки: каждому из 3 игроков — шаг 0..2 или «не ставить»
+		for p0 in range(-1, 3):
+			for p1 in range(-1, 3):
+				for p2 in range(-1, 3):
+					var t: Dictionary = s.duplicate(true)
+					var ok := true
+					for pair in [[0, p0], [1, p1], [2, p2]]:
+						if pair[1] >= 0 and not RulesDefend.place(t, pair[0], pair[1]):
+							ok = false
+					if not ok:
+						continue
+					options.append(t)
+					if RulesDefend.simulate(t)["outcome"] != "goal":
+						best = true
+		if best:
+			best_ok += 1
+		var pick: Dictionary = options[rng.randi_range(0, options.size() - 1)]
+		if RulesDefend.simulate(pick)["outcome"] != "goal":
+			rand_ok += 1
+	print("  Без защитников соперник не забивает: %.1f%%" % [100.0 * none_ok / n])
+	print("  Лучшая расстановка спасает: %.1f%%; случайная допустимая: %.1f%%" % [100.0 * best_ok / n, 100.0 * rand_ok / n])

@@ -85,6 +85,46 @@ func _template_name() -> String:
 	return ""
 
 
+## Подпись в верхней панели (номер атаки/раунда).
+func _attack_label() -> String:
+	var n: int = GameData.series()["attacks"]
+	return "Тренировка" if tutorial_active else "Атака %d из %d" % [mini(attack_idx + 1, n), n]
+
+
+## Заголовок и цвет панели итога для исхода.
+func _result_style(outcome: String) -> Array:
+	var titles := {"goal": "ГОЛ!", "save": "Сейв вратаря", "intercept": "Перехват", "lost": "Потеря мяча"}
+	var cols := {"goal": Game.C_SAFE, "save": Game.C_WARN, "intercept": Game.C_DANGER, "lost": Color(0.75, 0.7, 0.65)}
+	return [titles.get(outcome, outcome), cols.get(outcome, Game.C_BORDER)]
+
+
+## Подпись кнопки «продолжить» на панели итога.
+func _continue_label() -> String:
+	var n: int = GameData.series()["attacks"]
+	if tutorial_active:
+		return "Начать серию ▶"
+	return "Итоги серии ▶" if attack_idx + 1 >= n else "Следующая атака ▶"
+
+
+## Показывать ли «Повторить тренировку» на этой панели итога.
+func _offer_retry() -> bool:
+	return tutorial_active
+
+
+## Что делать по «продолжить». По умолчанию — следующая атака или итоги.
+func _on_continue() -> void:
+	if tutorial_active:
+		_begin_series()
+		return
+	var n: int = GameData.series()["attacks"]
+	if attack_idx + 1 >= n:
+		attack_over = false
+		Game.finish_series()
+		return
+	attack_idx += 1
+	_new_attack()
+
+
 # ------------------------------------------------------------------ верхняя панель
 func _build_top_bar() -> void:
 	var bar := Panel.new()
@@ -128,11 +168,7 @@ func _build_top_bar() -> void:
 
 
 func _update_top() -> void:
-	var n: int = GameData.series()["attacks"]
-	if tutorial_active:
-		_attack_lb.text = "Тренировка"
-	else:
-		_attack_lb.text = "Атака %d из %d" % [mini(attack_idx + 1, n), n]
+	_attack_lb.text = _attack_label()
 	_seed_lb.text = "seed %d" % Game.series_seed
 	_pips.queue_redraw()
 
@@ -223,19 +259,18 @@ func end_attack(outcome: String, reason: String) -> void:
 
 
 func _show_result(outcome: String, reason: String) -> void:
-	var titles := {"goal": "ГОЛ!", "save": "Сейв вратаря", "intercept": "Перехват", "lost": "Потеря мяча"}
-	var cols := {"goal": Game.C_SAFE, "save": Game.C_WARN, "intercept": Game.C_DANGER, "lost": Color(0.75, 0.7, 0.65)}
+	var style := _result_style(outcome)
 	var p := Panel.new()
 	p.position = Vector2(16, HAND_Y - 4)
 	p.size = Vector2(1248, 176)
-	p.add_theme_stylebox_override("panel", Game.box(Color(0.1, 0.075, 0.06, 0.97), cols.get(outcome, Game.C_BORDER), 12, 3))
+	p.add_theme_stylebox_override("panel", Game.box(Color(0.1, 0.075, 0.06, 0.97), style[1], 12, 3))
 	add_child(p)
 	_result_panel = p
 	var t := Label.new()
-	t.text = titles.get(outcome, outcome)
+	t.text = style[0]
 	t.position = Vector2(24, 14)
 	t.add_theme_font_size_override("font_size", 34)
-	t.add_theme_color_override("font_color", cols.get(outcome, Game.C_TEXT))
+	t.add_theme_color_override("font_color", style[1])
 	p.add_child(t)
 	var body := RichTextLabel.new()
 	body.bbcode_enabled = true
@@ -245,13 +280,12 @@ func _show_result(outcome: String, reason: String) -> void:
 	body.add_theme_font_size_override("bold_font_size", 18)
 	body.text = reason
 	p.add_child(body)
-	var n: int = GameData.series()["attacks"]
 	var btn := Button.new()
 	btn.add_theme_font_size_override("font_size", 20)
 	btn.position = Vector2(920, 60)
 	btn.size = Vector2(300, 60)
-	if tutorial_active:
-		btn.text = "Начать серию ▶"
+	btn.text = _continue_label()
+	if _offer_retry():
 		var again := Button.new()
 		again.text = "Повторить тренировку"
 		again.position = Vector2(920, 126)
@@ -260,10 +294,6 @@ func _show_result(outcome: String, reason: String) -> void:
 			Sfx.play("click")
 			_new_attack())
 		p.add_child(again)
-	elif attack_idx + 1 >= n:
-		btn.text = "Итоги серии ▶"
-	else:
-		btn.text = "Следующая атака ▶"
 	btn.pressed.connect(_continue)
 	btn.focus_mode = Control.FOCUS_NONE
 	p.add_child(btn)
@@ -279,16 +309,10 @@ func _continue() -> void:
 	if not attack_over or _result_panel == null or (_overlay and is_instance_valid(_overlay)):
 		return
 	Sfx.play("click")
-	if tutorial_active:
-		_begin_series()
-		return
-	var n: int = GameData.series()["attacks"]
-	if attack_idx + 1 >= n:
-		attack_over = false
-		Game.finish_series()
-		return
-	attack_idx += 1
-	_new_attack()
+	if _result_panel:
+		_result_panel.queue_free()
+		_result_panel = null
+	_on_continue()
 
 
 func set_hint(bb: String) -> void:

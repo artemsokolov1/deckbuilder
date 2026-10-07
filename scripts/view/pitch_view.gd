@@ -25,6 +25,7 @@ var route: Array = []  # [{from,to,ok,num}] — план режима B
 var pressure_cells: Array = []
 var shot_lines: Array = [2, 3]
 var show_shot_band := true
+var goal_caption := ""
 var dim_field := false
 
 var net_shake := 0.0:
@@ -358,6 +359,11 @@ func _draw_goal(l: Node2D) -> void:
 	l.draw_line(Vector2(r.end.x, r.end.y), Vector2(r.end.x, r.position.y), post, 4.0)
 	l.draw_line(Vector2(r.position.x, r.position.y), Vector2(r.end.x, r.position.y), post, 4.0)
 	l.draw_line(Vector2(r.position.x - 2, r.end.y), Vector2(r.end.x + 2, r.end.y), post, 3.0)
+	if goal_caption != "":
+		var f := ThemeDB.fallback_font
+		var w := f.get_string_size(goal_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		l.draw_rect(Rect2(r.get_center().x - w / 2 - 6, r.position.y + 6, w + 12, 18), Color(0.1, 0.07, 0.05, 0.85))
+		l.draw_string(f, Vector2(r.get_center().x - w / 2, r.position.y + 20), goal_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("f0c04a"))
 
 
 func _draw_zones(l: Node2D) -> void:
@@ -420,6 +426,8 @@ func _draw_arrows(l: Node2D) -> void:
 	# маршрут плана (режим B)
 	for seg in route:
 		var col: Color = Game.C_SAFE if seg.get("ok", true) else Game.C_DANGER
+		if seg.has("col"):
+			col = seg["col"]
 		if seg.get("dim", false):
 			col = Color(0.8, 0.8, 0.8, 0.45)
 		var a: Vector2 = att_pos(seg["from"]) if seg["from"] is Vector2i else seg["from"]
@@ -492,6 +500,25 @@ func _attacker_spots(b: Vector2i) -> Array:
 		if spots.size() >= 4:
 			break
 	return spots
+
+
+## Вернуть фишкам стандартный вид (после фазы защиты в режиме A).
+func reset_chips() -> void:
+	var anums := [7, 8, 9, 10, 11]
+	var dnums := [4, 5, 6, 3, 8]
+	for i in attackers.size():
+		attackers[i].number = anums[i]
+		attackers[i].modulate.a = 1.0
+		attackers[i].scale = Vector2.ONE
+		attackers[i].rotation = 0
+		attackers[i].queue_redraw()
+	for i in defenders.size():
+		defenders[i].number = dnums[i]
+		defenders[i].scale = Vector2.ONE
+		defenders[i].rotation = 0
+		defenders[i].queue_redraw()
+	ball.visible = true
+	ball.height = 0
 
 
 ## Мгновенная расстановка без анимации.
@@ -585,7 +612,7 @@ func move_defenders(cells: Array, dur: float) -> Tween:
 
 ## Передача: мяч летит по дуге, ближайший партнёр выбегает в клетку-цель.
 ## Если bad != NONE — мяч перехвачен в клетке bad.
-func pass_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE, lob := false) -> Tween:
+func pass_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE, lob := false, num := -1) -> Tween:
 	var dest := att_pos(to_cell)
 	var receiver: Chip = null
 	for a in attackers:
@@ -593,6 +620,9 @@ func pass_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE, lob := false) -
 			continue
 		if receiver == null or a.position.distance_to(dest) < receiver.position.distance_to(dest):
 			receiver = a
+	if num >= 0:
+		receiver.number = num
+		receiver.queue_redraw()
 	var tw := create_tween().set_parallel(true)
 	var end_pos := dest + Vector2(10, 8)
 	if bad != Pitch.NONE:
@@ -610,8 +640,11 @@ func pass_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE, lob := false) -
 
 
 ## Носитель сам ведёт мяч в клетку (обводка) или стоит на месте (финт).
-func carry_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE) -> Tween:
+func carry_ball(to_cell: Vector2i, dur: float, bad := Pitch.NONE, num := -1) -> Tween:
 	var dest := att_pos(to_cell)
+	if num >= 0 and carrier:
+		carrier.number = num
+		carrier.queue_redraw()
 	var tw := create_tween().set_parallel(true)
 	if bad != Pitch.NONE:
 		dest = def_pos(bad) + Vector2(-28, 16)

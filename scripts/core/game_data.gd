@@ -34,6 +34,18 @@ static func card(mode_id: String, card_id: String) -> Dictionary:
 	return get_data()["cards"][mode_id][card_id]
 
 
+static func player(id: String) -> Dictionary:
+	return get_data()["players"].get(id, {})
+
+
+static func is_player(id: String) -> bool:
+	return get_data()["players"].has(id)
+
+
+static func opponent() -> Dictionary:
+	return get_data()["opponent"]
+
+
 static func defense(mode_id: String) -> Dictionary:
 	return get_data()["defense"][mode_id]
 

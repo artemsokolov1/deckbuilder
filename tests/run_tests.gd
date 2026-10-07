@@ -9,6 +9,8 @@ var _passes := 0
 func _initialize() -> void:
 	print("=== Последняя атака: проверки правил ===")
 	_test_a()
+	_test_players()
+	_test_defend()
 	_test_b()
 	_test_c()
 	print("=== Итог: %d прошло, %d провалено ===" % [_passes, _fails])
@@ -340,3 +342,100 @@ func _test_c() -> void:
 	RulesC.play_card(x, 0)
 	RulesC.play_card(y, 0)
 	check(var_to_str(x) == var_to_str(y), "C: тот же seed — те же события")
+
+
+# ---------------------------------------------------------------- A: футболисты
+func _test_players() -> void:
+	print("-- Режим A: карты футболистов")
+	var c := RulesA.cfg()
+	var free := [[], [], [], [], [], []]
+	# Соколов (пас 4) — короткий пас с мастерством: +2 качества; Титов (пас 3) — +1.
+	var s := a_state(["sokolov", "titov", "kozlov", "belov", "zaitsev"], free)
+	check(RulesA.card_def("sokolov")["mastery"] == 1 and RulesA.card_def("titov")["mastery"] == 0, "мастерство: пас 4 даёт +1, пас 3 — нет")
+	RulesA.play_card(s, idx_of(s, "sokolov"), Vector2i(1, 1))
+	check(s["quality"] == 2 and s["holder"] == "sokolov", "мяч у Соколова, качество +2")
+	check(RulesA.card_block_reason(s, idx_of(s, "zaitsev")) == "", "стеночка Зайцева доступна после паса Соколова")
+	RulesA.play_card(s, idx_of(s, "titov"), Vector2i(1, 2))
+	check(s["quality"] == 3 and s["holder"] == "titov", "мяч у Титова, качество +1")
+	var info := RulesA.shot_info(s)
+	check(info["shooter_bonus"] == 4 - int(c["shooter_base"]) and info["value"] == 3 + int(c["position_bonus"][2][1]) + info["shooter_bonus"],
+		"удар считает удар владельца мяча (Титов 4)")
+	RulesA.play_card(s, idx_of(s, "kozlov"), Vector2i(1, 2))
+	info = RulesA.shot_info(s)
+	check(s["holder"] == "kozlov" and info["shooter_bonus"] == 2 and s["quality"] == 5, "финт Козлова: мяч у него, удар 5 даёт +2, дриблинг 4 — мастерство")
+	RulesA.play_card(s, idx_of(s, "belov"), Vector2i(0, 2))
+	check(RulesA.shot_info(s)["shooter_bonus"] == -2, "перевод на защитника Белова: удар 1 даёт −2")
+	# Колода серии — 12 разных футболистов.
+	var a := RulesA.new_attack(77, 0)
+	var all: Array = a["hand"] + a["deck"]
+	all.sort()
+	var squad: Array = c["squad"].duplicate()
+	squad.sort()
+	check(all == squad, "колода атаки — весь состав из 12 футболистов без повторов")
+
+
+# ---------------------------------------------------------------- A: защита
+func d_state(hand: Array, attackers: Array, route: Array) -> Dictionary:
+	var s := RulesDefend.new_defense(1, 0, ["belov", "gusev", "mironov"])
+	s["hand"] = hand.duplicate()
+	s["attackers"] = attackers.duplicate()
+	s["route"] = route.duplicate()
+	return s
+
+
+func _test_defend() -> void:
+	print("-- Режим A: защита")
+	var route := [Vector2i(1, 0), Vector2i(1, 1), Vector2i(1, 2), Vector2i(1, 3)]
+	var lines: Dictionary = RulesA.cfg()["defend_lines"]
+	# Без защитников: Рябов (удар 4) забивает вратарю с реакцией 3; Цветков (удар 3) — нет.
+	var s := d_state(["mironov", "sokolov", "volkov"], ["nosov", "fomin", "ryabov"], route)
+	check(RulesDefend.simulate(s)["outcome"] == "goal", "без защиты: удар 4 против реакции 3 — гол")
+	var s2 := d_state(["mironov", "sokolov", "volkov"], ["nosov", "fomin", "tsvetkov"], route)
+	check(RulesDefend.simulate(s2)["outcome"] == "save", "удар 3 против реакции 3 — сейв")
+	# Позиции ограничивают линии.
+	for k in 3:
+		var line: int = route[k + 1].y
+		check((RulesDefend.place_reason(s, 0, k) == "") == lines["ЗЩ"].has(line), "ЗЩ на шаге %d: по правилам позиции" % (k + 1))
+		check((RulesDefend.place_reason(s, 2, k) == "") == lines["НП"].has(line), "НП на шаге %d: по правилам позиции" % (k + 1))
+	# Отбор ≥ дриблинга — мяч отобран на этом шаге, дальше ничего.
+	var step_zsch: int = -1
+	for k in 3:
+		if RulesDefend.place_reason(s, 0, k) == "":
+			step_zsch = k
+	check(RulesDefend.place(s, 0, step_zsch), "Миронов встаёт на маршрут")
+	var before := var_to_str(s)
+	var sim := RulesDefend.simulate(s)
+	check(var_to_str(s) == before, "предпросмотр защиты не меняет состояние")
+	check(sim["outcome"] == "tackle" and sim["stopped_at"] == step_zsch and sim["steps"].size() == step_zsch + 1, "Миронов (отбор 5) отбирает у Рябова (дриблинг 4)")
+	# Отбор меньше дриблинга — защитник обыгран.
+	var s3 := d_state(["sokolov", "mironov", "volkov"], ["fomin", "yakovlev", "ryabov"], route)
+	var k_mid := -1
+	for k in 3:
+		if RulesDefend.place_reason(s3, 0, k) == "":
+			k_mid = k
+			break
+	RulesDefend.place(s3, 0, k_mid)
+	var sim3 := RulesDefend.simulate(s3)
+	check(sim3["steps"][k_mid]["beaten"] and sim3["outcome"] == "goal", "Соколов (отбор 3) обыгран дриблингом 4 — атака продолжается")
+	# Лимит мест.
+	var slots: int = RulesA.cfg()["defense_slots"]
+	var s4 := d_state(["mironov", "sokolov", "gusev"], ["nosov", "fomin", "ryabov"], route)
+	var placed := 0
+	for i in 3:
+		for k in 3:
+			if RulesDefend.place(s4, i, k):
+				placed += 1
+				break
+	check(RulesDefend.placed_count(s4) <= slots, "не больше %d защитников на маршруте" % slots)
+	# Исполнение = предпросмотр, повтор невозможен.
+	var sim4 := RulesDefend.simulate(s4)
+	var ex := RulesDefend.execute(s4)
+	check(ex["outcome"] == sim4["outcome"] and s4["over"], "исполнение защиты совпадает с предпросмотром")
+	check(RulesDefend.execute(s4).is_empty() and not RulesDefend.place(s4, 0, 2), "после розыгрыша защиту менять нельзя")
+	# Воспроизводимость и разнообразие.
+	var a := RulesA.new_attack(55, 1)
+	check(var_to_str(RulesDefend.new_defense(55, 1, a["deck"])) == var_to_str(RulesDefend.new_defense(55, 1, a["deck"])), "тот же seed — та же атака соперника")
+	var tpl := {}
+	for r in 3:
+		tpl[RulesDefend.new_defense(31337, r, a["deck"])["template"]] = true
+	check(tpl.size() == 3, "первые три атаки соперника — три разных маршрута")

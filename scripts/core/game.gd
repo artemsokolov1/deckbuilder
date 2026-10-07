@@ -38,6 +38,7 @@ var mode := "a"
 var series_seed := 0
 var want_tutorial := false
 var attacks: Array = []  # {outcome, reason, template}
+var defenses: Array = []  # режим A: атаки соперника {outcome: tackle/goal/save, reason, template}
 var series_start_ms := 0
 var series_end_ms := 0
 
@@ -57,6 +58,7 @@ func start_mode(mode_id: String, p_seed: int = -1, tutorial: bool = false) -> vo
 	series_seed = p_seed if p_seed >= 0 else Seeds.new_series_seed()
 	want_tutorial = tutorial or not tutorial_seen.get(mode_id, false)
 	attacks = []
+	defenses = []
 	series_start_ms = 0
 	series_end_ms = 0
 	get_tree().change_scene_to_file(MODE_SCENES[mode_id])
@@ -64,11 +66,36 @@ func start_mode(mode_id: String, p_seed: int = -1, tutorial: bool = false) -> vo
 
 func begin_series_clock() -> void:
 	attacks = []
+	defenses = []
 	series_start_ms = Time.get_ticks_msec()
 
 
 func record_attack(outcome: String, reason: String, template: String) -> void:
 	attacks.append({"outcome": outcome, "reason": reason, "template": template})
+
+
+func record_defense(outcome: String, reason: String, template: String) -> void:
+	defenses.append({"outcome": outcome, "reason": reason, "template": template})
+
+
+## Голы соперника (только режим A).
+func opp_goals() -> int:
+	var n := 0
+	for d in defenses:
+		if d["outcome"] == "goal":
+			n += 1
+	return n
+
+
+func is_match() -> bool:
+	return mode == "a"
+
+
+## Итог серии: "win" / "draw" / "loss". В A — по счёту матча, в B и C — по цели в голах.
+func series_result() -> String:
+	if is_match():
+		return "win" if goals() > opp_goals() else ("draw" if goals() == opp_goals() else "loss")
+	return "win" if goals() >= int(GameData.series()["goals_to_win"]) else "loss"
 
 
 func goals() -> int:
@@ -168,6 +195,9 @@ func _save_history() -> void:
 	cf.set_value(sec, "mode", mode)
 	cf.set_value(sec, "seed", series_seed)
 	cf.set_value(sec, "goals", goals())
+	if is_match():
+		cf.set_value(sec, "opp", opp_goals())
+	cf.set_value(sec, "result", series_result())
 	cf.set_value(sec, "duration", duration_sec())
 	cf.set_value(sec, "time", Time.get_datetime_string_from_system())
 	cf.save(HISTORY_PATH)
@@ -184,7 +214,8 @@ func mode_summary(mode_id: String) -> Dictionary:
 				out["series"] += 1
 				var g: int = cf.get_value(sec, "goals", 0)
 				out["goals"] += g
-				if g >= need:
+				var res: String = cf.get_value(sec, "result", "win" if g >= need else "loss")
+				if res == "win":
 					out["wins"] += 1
 	var rf := ConfigFile.new()
 	if rf.load(RATINGS_PATH) == OK:

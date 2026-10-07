@@ -1,5 +1,5 @@
 {
-  "_comment": "Все числа баланса, тексты карт и планы обороны. Клетка = [коридор, линия]; коридор 0=левый,1=центр,2=правый; линия 0=своя (снизу), 3=у ворот. Изменения баланса описаны в docs/BALANCE.md.",
+  "_comment": "Футболисты (players) вымышленные: pass/drib/shot/tackle 1..5, action — умение из cards.a. Все числа баланса, тексты карт и планы обороны. Клетка = [коридор, линия]; коридор 0=левый,1=центр,2=правый; линия 0=своя (снизу), 3=у ворот. Изменения баланса описаны в docs/BALANCE.md.",
   "series": {
     "attacks": 5,
     "goals_to_win": 3
@@ -8,7 +8,7 @@
   "modes": {
     "a": {
       "title": "A · «Комбинация»",
-      "menu_line": "Разбирайте оборону шаг за шагом: каждая карта двигает мяч, после неё сдвигается оборона.",
+      "menu_line": "Матч против соперника: атакуйте картами своих футболистов, затем защищайтесь от его атаки. Побеждает тот, кто забил больше.",
       "start": [1, 0],
       "tempo": 5,
       "hand_size": 5,
@@ -16,12 +16,24 @@
       "shot_cost": 1,
       "shot_lines": [2, 3],
       "position_bonus": [[0, 0, 0], [0, 0, 0], [1, 2, 1], [2, 3, 2]],
-      "keeper_threshold": 5,
-      "deck": {"short_pass": 4, "switch": 2, "dribble": 2, "through": 2, "one_two": 1, "feint": 1},
+      "keeper_threshold": 7,
+      "squad": ["belov", "gusev", "mironov", "orlov", "sokolov", "kuznetsov", "lebedev", "zaitsev", "volkov", "ershov", "kozlov", "titov"],
+      "mastery_stat": {"short_pass": "pass", "switch": "pass", "through": "pass", "one_two": "pass", "dribble": "drib", "feint": "drib"},
+      "mastery_from": 4,
+      "mastery_bonus": 1,
+      "shooter_base": 3,
+      "keeper": {"num": 1, "name": "Петров", "pos": "ВР", "reaction": 3},
+      "defense_hand": 3,
+      "defense_slots": 1,
+      "defend_lines": {"ЗЩ": [3], "ПЗ": [1, 2], "НП": [1]},
       "template_order": ["center_closed", "press", "low_block"],
+      "opp_order": ["flank", "center", "diagonal"],
       "tutorial": {
-        "hand": ["short_pass", "short_pass", "one_two", "feint", "switch"],
-        "template": "tutorial"
+        "hand": ["sokolov", "titov", "zaitsev", "kozlov", "belov"],
+        "template": "tutorial",
+        "defense_hand": ["mironov", "gusev", "kuznetsov"],
+        "opp_attack": "flank",
+        "opp_players": ["nosov", "fomin", "ryabov"]
       }
     },
     "b": {
@@ -57,19 +69,54 @@
     }
   },
 
+  "players": {
+    "belov":     {"num": 2,  "name": "Белов",    "pos": "ЗЩ", "action": "switch",     "pass": 3, "drib": 1, "shot": 1, "tackle": 3},
+    "gusev":     {"num": 3,  "name": "Гусев",    "pos": "ЗЩ", "action": "short_pass", "pass": 3, "drib": 2, "shot": 1, "tackle": 4},
+    "mironov":   {"num": 4,  "name": "Миронов",  "pos": "ЗЩ", "action": "short_pass", "pass": 2, "drib": 1, "shot": 2, "tackle": 5},
+    "orlov":     {"num": 5,  "name": "Орлов",    "pos": "ЗЩ", "action": "switch",     "pass": 4, "drib": 2, "shot": 1, "tackle": 3},
+    "sokolov":   {"num": 6,  "name": "Соколов",  "pos": "ПЗ", "action": "short_pass", "pass": 4, "drib": 2, "shot": 2, "tackle": 3},
+    "kuznetsov": {"num": 8,  "name": "Кузнецов", "pos": "ПЗ", "action": "through",    "pass": 5, "drib": 2, "shot": 3, "tackle": 2},
+    "lebedev":   {"num": 10, "name": "Лебедев",  "pos": "ПЗ", "action": "through",    "pass": 3, "drib": 3, "shot": 4, "tackle": 2},
+    "zaitsev":   {"num": 14, "name": "Зайцев",   "pos": "ПЗ", "action": "one_two",    "pass": 4, "drib": 3, "shot": 3, "tackle": 2},
+    "volkov":    {"num": 7,  "name": "Волков",   "pos": "НП", "action": "dribble",    "pass": 2, "drib": 5, "shot": 4, "tackle": 1},
+    "ershov":    {"num": 11, "name": "Ершов",    "pos": "НП", "action": "dribble",    "pass": 2, "drib": 3, "shot": 3, "tackle": 1},
+    "kozlov":    {"num": 9,  "name": "Козлов",   "pos": "НП", "action": "feint",      "pass": 2, "drib": 4, "shot": 5, "tackle": 1},
+    "titov":     {"num": 17, "name": "Титов",    "pos": "НП", "action": "short_pass", "pass": 3, "drib": 3, "shot": 4, "tackle": 1}
+  },
+
+  "opponent": {
+    "name": "Двор с Садовой",
+    "short": "САДОВАЯ",
+    "_comment": "Атака соперника: route — 4 клетки (старт и 3 шага к вашим воротам), шаги 1–2 ведут полузащитники, шаг 3 и удар — нападающий.",
+    "players": {
+      "nosov":    {"num": 4,  "name": "Носов",    "pos": "ПЗ", "drib": 3, "shot": 2},
+      "dyakov":   {"num": 6,  "name": "Дьяков",   "pos": "ПЗ", "drib": 3, "shot": 2},
+      "fomin":    {"num": 8,  "name": "Фомин",    "pos": "ПЗ", "drib": 4, "shot": 3},
+      "yakovlev": {"num": 10, "name": "Яковлев",  "pos": "ПЗ", "drib": 4, "shot": 3},
+      "ryabov":   {"num": 7,  "name": "Рябов",    "pos": "НП", "drib": 4, "shot": 4},
+      "grishin":  {"num": 9,  "name": "Гришин",   "pos": "НП", "drib": 4, "shot": 5},
+      "tsvetkov": {"num": 11, "name": "Цветков",  "pos": "НП", "drib": 5, "shot": 3}
+    },
+    "attacks": {
+      "flank":    {"name": "Через фланг",   "route": [[1, 0], [0, 1], [0, 2], [0, 3]]},
+      "center":   {"name": "Через центр",   "route": [[1, 0], [1, 1], [1, 2], [1, 3]]},
+      "diagonal": {"name": "Смена флангов", "route": [[0, 0], [1, 1], [2, 2], [1, 3]]}
+    }
+  },
+
   "cards": {
     "a": {
-      "short_pass": {"name": "Короткий пас", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 0,
+      "short_pass": {"name": "Короткий пас", "short": "+1 линия, прямо или вбок", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 0,
         "text": "Вперёд на 1 линию: прямо или в соседний коридор. +1 к качеству."},
-      "switch": {"name": "Перевод", "cost": 1, "advance": 0, "lane": "other", "path": "target", "quality": 0, "quality_beat": 0, "protect": 0,
+      "switch": {"name": "Перевод", "short": "другой коридор, та же линия", "cost": 1, "advance": 0, "lane": "other", "path": "target", "quality": 0, "quality_beat": 0, "protect": 0,
         "text": "Мяч в другой коридор на той же линии. Обходит перекрытый участок."},
-      "dribble": {"name": "Обводка", "cost": 2, "advance": 1, "lane": "same", "path": "target", "quality": 0, "quality_beat": 1, "protect": 1,
+      "dribble": {"name": "Обводка", "short": "+1 линия прямо, проходит 1 зону", "cost": 2, "advance": 1, "lane": "same", "path": "target", "quality": 0, "quality_beat": 1, "protect": 1,
         "text": "Вперёд на 1 линию прямо. Проходит одну опасную зону: +1 к качеству за обыгранного."},
-      "through": {"name": "Разрезающий пас", "cost": 2, "advance": 2, "lane": "adjacent", "path": "run", "quality": 2, "quality_beat": 0, "protect": 0,
+      "through": {"name": "Разрезающий пас", "short": "+2 линии, обе клетки пути", "cost": 2, "advance": 2, "lane": "adjacent", "path": "run", "quality": 2, "quality_beat": 0, "protect": 0,
         "text": "Вперёд на 2 линии. Проверяет обе клетки пути. +2 к качеству."},
-      "one_two": {"name": "Стеночка", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 99, "requires_prev": "short_pass",
+      "one_two": {"name": "Стеночка", "short": "сразу после паса, без риска", "cost": 1, "advance": 1, "lane": "adjacent", "path": "target", "quality": 1, "quality_beat": 0, "protect": 99, "requires_prev": "short_pass",
         "text": "Сразу после короткого паса: вперёд на 1 линию без перехвата. +1 к качеству."},
-      "feint": {"name": "Финт", "cost": 1, "advance": 0, "lane": "none", "path": "none", "quality": 1, "quality_beat": 0, "protect": 0,
+      "feint": {"name": "Финт", "short": "мяч на месте, оборона шагает", "cost": 1, "advance": 0, "lane": "none", "path": "none", "quality": 1, "quality_beat": 0, "protect": 0,
         "text": "Мяч на месте. Оборона делает свой шаг, пока вы ждёте. +1 к качеству."}
     },
     "b": {

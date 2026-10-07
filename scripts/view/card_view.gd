@@ -38,6 +38,17 @@ var base_y := 0.0
 var _hover := false
 var _title_lb: Label
 var _desc_lb: Label
+var _skill_lb: Label
+
+# Карта футболиста (режим A)
+var player: Dictionary = {}
+var defense_mode := false  # в защите главное — отбор
+var mastery := 0
+var mastery_stat := ""
+
+const POS_COLORS := {"ЗЩ": Color("7fa8dc"), "ПЗ": Color("8fd27a"), "НП": Color("f2a33a")}
+const POS_NAMES := {"ЗЩ": "защитник", "ПЗ": "полузащитник", "НП": "нападающий"}
+const STAT_NAMES := [["pass", "Пас"], ["drib", "Дриблинг"], ["shot", "Удар"], ["tackle", "Отбор"]]
 var _tw: Tween
 
 const ACCENTS := {
@@ -61,6 +72,50 @@ func setup(id: String, def: Dictionary, idx: int) -> void:
 		_desc_lb.text = desc
 		_fit_title()
 	queue_redraw()
+
+
+## Карта футболиста. def — RulesA.card_def(id) (умение с мастерством).
+## defense=true — карта в руке защиты: подчёркнут отбор и линии, где игрок может встать.
+func setup_player(id: String, def: Dictionary, idx: int, defense: bool, lines_text: String = "") -> void:
+	card_id = id
+	hand_idx = idx
+	player = def["player"]
+	defense_mode = defense
+	mastery = int(def.get("mastery", 0))
+	mastery_stat = def.get("mastery_stat", "")
+	title = player["name"]
+	cost = -1 if defense else int(def["cost"])
+	if defense:
+		desc = "Отбор %d ≥ дриблинга — мяч ваш.\nСтоит на %s %s." % [player["tackle"], "линиях" if "–" in lines_text else "линии", lines_text]
+	else:
+		desc = def["short"] + ("\nМастерство +%d" % mastery if mastery > 0 else "")
+	if _title_lb:
+		_apply_player_layout()
+	queue_redraw()
+
+
+func _apply_player_layout() -> void:
+	_title_lb.position = Vector2(40, 4)
+	_title_lb.size = Vector2(SIZE.x - 78, 24)
+	_title_lb.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_title_lb.text = title
+	var f := ThemeDB.fallback_font
+	var fs := 16
+	while fs > 11 and f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > _title_lb.size.x:
+		fs -= 1
+	_title_lb.add_theme_font_size_override("font_size", fs)
+	if _skill_lb == null:
+		_skill_lb = Label.new()
+		_skill_lb.add_theme_font_size_override("font_size", 14)
+		_skill_lb.add_theme_color_override("font_color", Color("2b1d10"))
+		_skill_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_skill_lb)
+	_skill_lb.position = Vector2(9, 100)
+	_skill_lb.size = Vector2(SIZE.x - 18, 20)
+	_skill_lb.text = "В защите" if defense_mode else GameData.card("a", player["action"])["name"]
+	_desc_lb.position = Vector2(9, 120)
+	_desc_lb.size = Vector2(SIZE.x - 18, 52)
+	_desc_lb.text = desc
 
 
 func _fit_title() -> void:
@@ -103,6 +158,8 @@ func _ready() -> void:
 	_desc_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_desc_lb.text = desc
 	add_child(_desc_lb)
+	if not player.is_empty():
+		_apply_player_layout()
 	mouse_entered.connect(_on_enter)
 	mouse_exited.connect(_on_exit)
 
@@ -148,6 +205,9 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
+	if not player.is_empty():
+		_draw_player()
+		return
 	var r := Rect2(Vector2.ZERO, SIZE)
 	var accent: Color = ACCENTS.get(card_id, Game.C_ACCENT)
 	# тень
@@ -229,3 +289,58 @@ func _arrow(a: Vector2, b: Vector2, col: Color, w: float) -> void:
 	var dir := (b - a).normalized()
 	var n := Vector2(-dir.y, dir.x)
 	draw_colored_polygon(PackedVector2Array([b + dir * 4, b - dir * 9 + n * 6, b - dir * 9 - n * 6]), col)
+
+
+func _draw_player() -> void:
+	var r := Rect2(Vector2.ZERO, SIZE)
+	var f := ThemeDB.fallback_font
+	var pc: Color = POS_COLORS.get(player["pos"], Game.C_ACCENT)
+	draw_style_box(Game.box(Color(0, 0, 0, 0.35), Color(0, 0, 0, 0), 12, 0), Rect2(Vector2(-4, 6), SIZE))
+	var paper := Color("efe3c9") if not used else Color("8e877a")
+	var border := pc.darkened(0.4)
+	if selected:
+		border = Color("fff6c8")
+	elif marked:
+		border = Game.C_INFO
+	draw_style_box(Game.box(paper, border, 12, 4 if (selected or marked) else 2), r)
+	# шапка: номер, фамилия, позиция
+	draw_style_box(Game.box(pc.lightened(0.1), Color(0, 0, 0, 0), 10, 0), Rect2(4, 4, SIZE.x - 8, 42))
+	var nc := Vector2(22, 24)
+	draw_circle(nc, 15, Color("fff1d6"))
+	draw_circle(nc, 12.5, Color("f2a33a"))
+	var num := str(player["num"])
+	var nw := f.get_string_size(num, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	draw_string(f, nc + Vector2(-nw / 2.0, 5.5), num, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("2a1a0c"))
+	draw_string(f, Vector2(41, 41), POS_NAMES.get(player["pos"], player["pos"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("2b1d10").lightened(0.15))
+	if cost >= 0:
+		var c := Vector2(SIZE.x - 20, 22)
+		draw_circle(c, 14, Color("2b1d10"))
+		draw_circle(c, 11.5, Color("f7d27a"))
+		draw_string(f, c + Vector2(-4.5, 6), str(cost), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color("2b1d10"))
+	elif defense_mode:
+		var c2 := Vector2(SIZE.x - 22, 24)
+		draw_colored_polygon(PackedVector2Array([c2 + Vector2(-13, -14), c2 + Vector2(13, -14), c2 + Vector2(12, 4), c2 + Vector2(0, 15), c2 + Vector2(-12, 4)]), Color("2b1d10"))
+		draw_string(f, c2 + Vector2(-5, 6), str(player["tackle"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color("f7d27a"))
+	# характеристики 2×2
+	for i in 4:
+		var key: String = STAT_NAMES[i][0]
+		var col := i % 2
+		var row := i / 2
+		var p := Vector2(9 + col * 68, 52 + row * 22)
+		var hot := (defense_mode and key == "tackle") or (not defense_mode and (key == mastery_stat or key == "shot"))
+		var ink := Color("2b1d10") if hot else Color("2b1d10").lerp(paper, 0.45)
+		draw_string(f, p + Vector2(0, 11), STAT_NAMES[i][1] if STAT_NAMES[i][1].length() <= 5 else STAT_NAMES[i][1].substr(0, 4) + ".", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ink)
+		var v := int(player[key])
+		for k in 5:
+			var dc := p + Vector2(4 + k * 9, 18)
+			draw_circle(dc, 3.2, (pc.darkened(0.35) if hot else ink) if k < v else Color(0, 0, 0, 0.12))
+	draw_line(Vector2(8, 97), Vector2(SIZE.x - 8, 97), Color(0, 0, 0, 0.15), 1)
+	if marked:
+		draw_style_box(Game.box(Game.C_INFO, Color(0, 0, 0, 0), 6, 0), Rect2(SIZE.x - 82, 48, 74, 20))
+		draw_string(f, Vector2(SIZE.x - 76, 63), "на обмен", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("10202a"))
+	if tag != "":
+		var tw := f.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		draw_style_box(Game.box(Color("2b1d10"), Color(0, 0, 0, 0), 6, 0), Rect2(SIZE.x - tw - 22, 100, tw + 14, 20))
+		draw_string(f, Vector2(SIZE.x - tw - 15, 115), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("f7d27a"))
+	if _hover and not selected:
+		draw_style_box(Game.box(Color(1, 1, 1, 0.06), Color(1, 1, 1, 0.5), 12, 2), r)

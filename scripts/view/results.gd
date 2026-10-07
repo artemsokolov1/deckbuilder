@@ -17,31 +17,59 @@ func _ready() -> void:
 	var need: int = GameData.series()["goals_to_win"]
 	var n: int = GameData.series()["attacks"]
 	var goals := Game.goals()
-	var win := goals >= need
+	var result := Game.series_result()
+	var win := result == "win"
+	var match_mode := Game.is_match()
+	var opp: Dictionary = GameData.opponent()
 	var t := Label.new()
-	t.text = ("ПОБЕДА — %d из %d" if win else "Не хватило голов — %d из %d") % [goals, n]
+	if match_mode:
+		var word: String = {"win": "ПОБЕДА", "draw": "НИЧЬЯ", "loss": "ПОРАЖЕНИЕ"}[result]
+		t.text = "%s  %d : %d" % [word, goals, Game.opp_goals()]
+	else:
+		t.text = ("ПОБЕДА — %d из %d" if win else "Не хватило голов — %d из %d") % [goals, n]
 	t.position = Vector2(40, 22)
 	t.add_theme_font_size_override("font_size", 40)
-	t.add_theme_color_override("font_color", Game.C_SAFE if win else Game.C_WARN)
+	t.add_theme_color_override("font_color", Game.C_SAFE if win else (Game.C_WARN if result == "draw" or not match_mode else Game.C_DANGER))
 	add_child(t)
 	var sub := Label.new()
-	sub.text = "%s · цель: %d гола · seed %d" % [Game.mode_title(Game.mode), need, Game.series_seed]
+	if match_mode:
+		sub.text = "%s · против «%s» · seed %d" % [Game.mode_title(Game.mode), opp["name"], Game.series_seed]
+	else:
+		sub.text = "%s · цель: %d гола · seed %d" % [Game.mode_title(Game.mode), need, Game.series_seed]
 	sub.position = Vector2(42, 76)
 	sub.add_theme_color_override("font_color", Game.C_MUTED)
 	add_child(sub)
 	if win:
 		Sfx.play("goal")
+	if match_mode:
+		# крупное табло
+		var board := Label.new()
+		board.text = "ВЫ  %d : %d  %s" % [goals, Game.opp_goals(), opp["short"]]
+		board.position = Vector2(680, 30)
+		board.size = Vector2(560, 50)
+		board.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		board.add_theme_font_size_override("font_size", 30)
+		board.add_theme_color_override("font_color", Color("f7d27a"))
+		add_child(board)
 	# --- статистика
 	var left := _panel(Rect2(40, 112, 620, 470))
 	var sec := int(Game.duration_sec())
 	var stats := [["Голы", Game.count_outcome("goal"), Game.C_SAFE], ["Сейвы вратаря", Game.count_outcome("save"), Game.C_WARN],
 		["Перехваты", Game.count_outcome("intercept"), Game.C_DANGER], ["Потери (темп / давление)", Game.count_outcome("lost"), Color(0.8, 0.75, 0.7)]]
+	if match_mode:
+		var tackles := 0
+		var saves := 0
+		for dd in Game.defenses:
+			tackles += 1 if dd["outcome"] == "tackle" else 0
+			saves += 1 if dd["outcome"] == "save" else 0
+		stats = [["Забито", goals, Game.C_SAFE], ["Пропущено", Game.opp_goals(), Game.C_DANGER],
+			["Отборы / сейвы Петрова", "%d / %d" % [tackles, saves], Game.C_INFO], ["Перехваты / сейвы их вратаря", "%d / %d" % [Game.count_outcome("intercept"), Game.count_outcome("save")], Game.C_WARN]]
 	for i in stats.size():
 		_label(left, stats[i][0], Vector2(20, 16 + i * 32), 18, Game.C_MUTED)
 		_label(left, str(stats[i][1]), Vector2(290, 14 + i * 32), 22, stats[i][2])
-	_label(left, "Длительность серии", Vector2(340, 16), 18, Game.C_MUTED)
-	_label(left, "%d:%02d" % [sec / 60, sec % 60], Vector2(340, 42), 30, Game.C_TEXT)
-	_label(left, "Атаки:", Vector2(20, 152), 18, Game.C_ACCENT)
+	_label(left, "Длительность", Vector2(400, 16), 18, Game.C_MUTED)
+	_label(left, "%d:%02d" % [sec / 60, sec % 60], Vector2(400, 42), 30, Game.C_TEXT)
+	_label(left, "Раунды:" if match_mode else "Атаки:", Vector2(20, 152), 18, Game.C_ACCENT)
 	var names := {"goal": "ГОЛ", "save": "сейв", "intercept": "перехват", "lost": "потеря"}
 	var cols := {"goal": Game.C_SAFE, "save": Game.C_WARN, "intercept": Game.C_DANGER, "lost": Color(0.8, 0.75, 0.7)}
 	var list := RichTextLabel.new()
@@ -51,11 +79,20 @@ func _ready() -> void:
 	list.add_theme_font_size_override("normal_font_size", 14)
 	list.add_theme_font_size_override("bold_font_size", 14)
 	var txt := ""
+	var dnames := {"goal": "пропустили", "save": "сейв Петрова", "tackle": "отбор"}
+	var dcols := {"goal": Game.C_DANGER, "save": Game.C_SAFE, "tackle": Game.C_SAFE}
 	for i in Game.attacks.size():
 		var a: Dictionary = Game.attacks[i]
 		var reason: String = a["reason"].split("\n")[0]
-		txt += "[b]%d.[/b] [color=#%s][b]%s[/b][/color]%s — %s\n" % [i + 1, cols[a["outcome"]].to_html(false), names[a["outcome"]],
-			(" · " + a["template"]) if a["template"] != "" else "", reason]
+		if match_mode:
+			txt += "[b]%d.[/b] Вы: [color=#%s][b]%s[/b][/color] · %s" % [i + 1, cols[a["outcome"]].to_html(false), names[a["outcome"]], a["template"]]
+			if i < Game.defenses.size():
+				var dd: Dictionary = Game.defenses[i]
+				txt += "   Они: [color=#%s][b]%s[/b][/color] · %s" % [dcols[dd["outcome"]].to_html(false), dnames[dd["outcome"]], dd["template"]]
+			txt += "\n"
+		else:
+			txt += "[b]%d.[/b] [color=#%s][b]%s[/b][/color]%s — %s\n" % [i + 1, cols[a["outcome"]].to_html(false), names[a["outcome"]],
+				(" · " + a["template"]) if a["template"] != "" else "", reason]
 	list.text = txt
 	left.add_child(list)
 	# --- оценки

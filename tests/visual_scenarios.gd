@@ -67,31 +67,6 @@ func get_steps(name: String, t: SceneTree) -> Array:
 							c._go(1); c._go(1)],
 				["wait", 30], ["shot", "a_tut_practice"],
 			]
-		"a_goal":
-			steps = [
-				["call", func():
-					for m in g.tutorial_seen: g.tutorial_seen[m] = true
-					g.start_mode("a", 1, true)],
-				["wait", 5], ["call", practice], ["wait", 20],
-				["call", func():
-					var s = scene()
-					s._on_card_pressed(s.cards[0])
-					s._on_cell_clicked(Vector2i(0, 1))],
-				["wait", 60],
-				["call", func():
-					var s = scene()
-					s._on_card_pressed(s.cards[s.state["hand"].find("one_two")])
-					s._on_cell_clicked(Vector2i(0, 2))],
-				["wait", 60],
-				["call", func():
-					var s = scene()
-					s._on_card_pressed(s.cards[s.state["hand"].find("short_pass")])
-					s._on_cell_clicked(Vector2i(0, 3))],
-				["wait", 60], ["shot", "a_before_shot"],
-				["call", func(): scene()._on_shot()],
-				["wait", 50], ["shot", "a_goal_anim"],
-				["wait", 120], ["shot", "a_goal_result"],
-			]
 		"b":
 			steps = [
 				["call", func():
@@ -145,6 +120,51 @@ func get_steps(name: String, t: SceneTree) -> Array:
 					s._on_card_pressed(s.cards[3])
 					s._on_card_pressed(s.cards[3])],
 				["wait", 150], ["shot", "c_after2"],
+			]
+		"a_match":
+			steps = [
+				["call", func():
+					for m in g.tutorial_seen: g.tutorial_seen[m] = true
+					g.start_mode("a", 1, true)],
+				["wait", 5], ["call", practice], ["wait", 30], ["shot", "m_attack_start"],
+				["call", func():
+					var s = scene()
+					s._on_card_hovered(s.cards[0], true)],
+				["wait", 8], ["shot", "m_card_hover"],
+				["call", func():
+					var s = scene()
+					s._on_card_hovered(s.cards[0], false)
+					s._on_card_pressed(s.cards[s.state["hand"].find("sokolov")])
+					s._on_cell_clicked(Vector2i(0, 1))],
+				["wait", 60],
+				["call", func():
+					var s = scene()
+					s._on_card_pressed(s.cards[s.state["hand"].find("zaitsev")])
+					s._on_cell_clicked(Vector2i(0, 2))],
+				["wait", 60],
+				["call", func():
+					var s = scene()
+					s._on_card_pressed(s.cards[s.state["hand"].find("titov")])
+					s._on_cell_clicked(Vector2i(0, 3))],
+				["wait", 60], ["shot", "m_before_shot"],
+				["call", func(): scene()._on_shot()],
+				["wait", 200], ["shot", "m_attack_result"],
+				["call", func(): scene()._continue()],
+				["wait", 30], ["shot", "m_defense_start"],
+				["call", func():
+					var s = scene()
+					s._on_card_pressed(s.cards[0])
+					var c = RulesDefend.step_cell(s.dstate, 2)
+					s.pitch.hover_cell = c
+					s._on_cell_hovered(c)],
+				["wait", 10], ["shot", "m_defense_select"],
+				["call", func():
+					var s = scene()
+					s._on_cell_clicked(RulesDefend.step_cell(s.dstate, 2))],
+				["wait", 30], ["shot", "m_defense_placed"],
+				["call", func(): scene()._on_defend()],
+				["wait", 40], ["shot", "m_defense_exec"],
+				["wait", 150], ["shot", "m_defense_result"],
 			]
 		"misc":
 			steps = [

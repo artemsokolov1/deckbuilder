@@ -11,6 +11,11 @@ extends RefCounted
 ##   5. Оборона делает ровно один шаг плана (Финт — тоже ровно один шаг).
 ##   6. Если не осталось ни одного легального действия (включая удар) — потеря.
 ## Удар не двигает оборону и разрешается против текущего состояния.
+##
+## Карты — футболисты. Каждый умеет одно действие (cards.a.<action>). Мяч уходит к сыгранному
+## футболисту, он становится владельцем мяча. Мастерство: если нужная действию характеристика
+## (пас или дриблинг) не ниже mastery_from — +mastery_bonus к качеству при успехе.
+## Удар: + (удар владельца − shooter_base).
 
 const MODE := "a"
 
@@ -19,14 +24,46 @@ static func cfg() -> Dictionary:
 	return GameData.mode(MODE)
 
 
+static func action_def(action_id: String) -> Dictionary:
+	return GameData.card(MODE, action_id)
+
+
+## Определение карты: для футболиста — его умение с учётом мастерства;
+## для id действия (обучение старых версий, тесты) — само действие.
 static func card_def(id: String) -> Dictionary:
-	return GameData.card(MODE, id)
+	if not GameData.is_player(id):
+		var a := action_def(id).duplicate()
+		a["action"] = id
+		a["action_name"] = a["name"]
+		a["mastery"] = 0
+		return a
+	var pl := GameData.player(id)
+	var d := action_def(pl["action"]).duplicate()
+	var c := cfg()
+	var stat: String = c["mastery_stat"][pl["action"]]
+	var mastery := int(c["mastery_bonus"]) if int(pl[stat]) >= int(c["mastery_from"]) else 0
+	d["action"] = pl["action"]
+	d["action_name"] = d["name"]
+	d["name"] = "%s · %s" % [d["name"], pl["name"]]
+	d["player"] = pl
+	d["player_id"] = id
+	d["mastery"] = mastery
+	d["mastery_stat"] = stat
+	d["quality"] = int(d["quality"]) + mastery
+	return d
+
+
+## Поправка к удару от владельца мяча.
+static func shooter_bonus(holder: String) -> int:
+	if holder == "" or not GameData.is_player(holder):
+		return 0
+	return int(GameData.player(holder)["shot"]) - int(cfg()["shooter_base"])
 
 
 static func new_attack(series_seed: int, attack_idx: int, tutorial: bool = false) -> Dictionary:
 	var c := cfg()
 	var rng := Seeds.rng_for(series_seed, "a_deck", attack_idx)
-	var deck := Seeds.deck_from_counts(c["deck"])
+	var deck: Array = c["squad"].duplicate()
 	Seeds.shuffle(deck, rng)
 	var plan: Dictionary
 	var hand: Array
@@ -52,6 +89,7 @@ static func new_attack(series_seed: int, attack_idx: int, tutorial: bool = false
 		"plan": plan,
 		"step": 0,
 		"prev": "",
+		"holder": "",
 		"actions": 0,
 		"mulligan_used": tutorial,
 		"over": false,
@@ -78,7 +116,7 @@ static func card_block_reason(state: Dictionary, idx: int) -> String:
 	var req := String(d.get("requires_prev", ""))
 	if req != "" and state["prev"] != req:
 		return "Только сразу после «%s». Предыдущее действие: %s." % [
-			card_def(req)["name"], card_def(state["prev"])["name"] if state["prev"] != "" else "не было"]
+			action_def(req)["name"], action_def(state["prev"])["name"] if state["prev"] != "" else "не было"]
 	if Moves.targets(d, state["ball"]).is_empty():
 		return "Некуда продвигаться: мяч уже на последней линии."
 	return ""
@@ -148,7 +186,9 @@ static func _apply_card(s: Dictionary, idx: int, target: Vector2i) -> Dictionary
 	# 4. мяч и качество
 	s["ball"] = target
 	s["quality"] = int(s["quality"]) + int(res["quality"])
-	s["prev"] = id
+	s["prev"] = d["action"]
+	if GameData.is_player(id):
+		s["holder"] = id
 	r["quality_gain"] = res["quality"]
 	# 5. ровно один шаг обороны
 	s["step"] = int(s["step"]) + 1
@@ -172,7 +212,11 @@ static func _apply_card(s: Dictionary, idx: int, target: Vector2i) -> Dictionary
 
 static func shot_info(state: Dictionary) -> Dictionary:
 	var c := cfg()
-	var info := Moves.shot_eval(c, int(state["quality"]), state["ball"], danger(state), int(state["plan"]["extra_pressure"]))
+	var holder: String = state.get("holder", "")
+	var info := Moves.shot_eval(c, int(state["quality"]), state["ball"], danger(state), int(state["plan"]["extra_pressure"]), shooter_bonus(holder))
+	if GameData.is_player(holder):
+		info["shooter_name"] = GameData.player(holder)["name"]
+		info["shooter_shot"] = int(GameData.player(holder)["shot"])
 	info["cost"] = int(c["shot_cost"])
 	info["reason"] = ""
 	if state["over"]:
